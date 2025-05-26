@@ -285,8 +285,6 @@ void data_compact(struct dpu_set_t set, bitmap_t bitmap,int base) {
         start += size;
     }
 
-
-
     mode = 1;
     DPU_ASSERT(dpu_broadcast_to(set, "mode", 0, &mode, sizeof(uint64_t), DPU_XFER_DEFAULT));
     uint64_t n_size = global_g->n;
@@ -349,9 +347,9 @@ void data_compact(struct dpu_set_t set, bitmap_t bitmap,int base) {
         }
         if (max_col_size != 0) {
             DPU_FOREACH(set, dpu, each_dpu) {
-                DPU_ASSERT(dpu_prepare_xfer(dpu, &dpu_col_idx[each_dpu][processed_col_size[each_dpu]]));
+                DPU_ASSERT(dpu_prepare_xfer(dpu, &dpu_col_idx[each_dpu][processed_col_size[each_dpu]*3]));
             }
-            DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, "processed_col_idx", 0, ALIGN8(max_col_size * sizeof(node_t)), DPU_XFER_DEFAULT));
+            DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, "processed_col_idx", 0, ALIGN8(3*max_col_size * sizeof(node_t)), DPU_XFER_DEFAULT));
         }
         DPU_FOREACH(set, dpu, each_dpu) {
             processed_row_size[each_dpu] += tmp_row_size[each_dpu];
@@ -363,7 +361,7 @@ void data_compact(struct dpu_set_t set, bitmap_t bitmap,int base) {
         dpu_row_ptr[i][processed_row_size[i]] = processed_col_size[i];
     }
 
-    
+
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
     DPU_FOREACH(set, dpu, each_dpu) {
         uint64_t root_num = global_g->root_num[each_dpu+base];
@@ -431,7 +429,7 @@ void prepare_graph() {
     data_renumber();     
     bitmap = malloc(sizeof(uint32_t) * (N >> 5) * EF_NR_DPUS);
     data_allocate(bitmap);  
-    col_redundant();
+    //col_redundant();
 }
 
 

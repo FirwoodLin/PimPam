@@ -31,7 +31,7 @@ static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col,
     //node_t ans = intersect_seq_buf_thresh_not_run(tasklet_buf, &col_idx[root_begin], root_end - root_begin, &col_idx[second_root_begin], second_root_end - second_root_begin, mram_buf[tasklet_id], second_root);
     node_t ans = 1;
 #else
-    node_t ans = intersect_seq_buf_thresh(tasklet_buf, root_col, root_size, second_col, second_size, threshold);
+    node_t ans =  intersect_seq_buf_thresh(tasklet_buf, root_col, root_size, second_col, second_size, threshold);
 #endif
 
 #ifdef DC

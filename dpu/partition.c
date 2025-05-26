@@ -101,8 +101,15 @@ int main() {
         }
         processed_row_size = row_size;
         processed_col_size = col_size;
+
+        // for col_re
+        for (edge_ptr j = processed_col_size; j-- > 0;) {
+        node_t node = processed_col_idx[j];
+        processed_col_idx[3*j + 0] = node;
+        processed_col_idx[3*j + 1] = processed_row_ptr[node];
+        processed_col_idx[3*j + 2] = processed_row_ptr[node + 1]; 
+        }
     }
 
-}
     return 0;
 }
