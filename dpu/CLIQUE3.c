@@ -74,7 +74,6 @@ extern void clique3(sysname_t tasklet_id) {
 #ifdef BITMAP
         build_bitmap(root, root_begin, root_end, tasklet_id);
 #endif
-
         barrier_wait(&co_barrier);
         partial_ans[tasklet_id] = 0;
         for (edge_ptr j = root_begin + tasklet_id; j < root_end; j += NR_TASKLETS) {

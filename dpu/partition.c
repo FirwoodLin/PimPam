@@ -102,5 +102,7 @@ int main() {
         processed_row_size = row_size;
         processed_col_size = col_size;
     }
+
+}
     return 0;
 }

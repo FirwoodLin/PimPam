@@ -363,6 +363,7 @@ void data_compact(struct dpu_set_t set, bitmap_t bitmap,int base) {
         dpu_row_ptr[i][processed_row_size[i]] = processed_col_size[i];
     }
 
+    
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
     DPU_FOREACH(set, dpu, each_dpu) {
         uint64_t root_num = global_g->root_num[each_dpu+base];
