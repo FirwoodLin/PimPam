@@ -4,3 +4,5 @@ bin/
 obj/
 result/
 nohup.out
+.vscode/
+data_cached/

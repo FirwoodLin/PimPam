@@ -1,0 +1,83 @@
+---
+# Language: Cpp (兼容 C 语言)
+Language: Cpp
+
+# 基于 WebKit 风格，它本身使用 4 空格缩进和附加大括号
+BasedOnStyle: WebKit
+
+# --- 主要风格定制 ---
+
+# 缩进与制表符
+IndentWidth: 4      # 每次缩进的空格数
+UseTab: Never       # 不使用制表符，仅使用空格
+TabWidth: 4         # 制表符宽度（若 UseTab: Never，此项主要用于对齐注释等）
+
+# 大括号换行风格
+BreakBeforeBraces: Attach # 大括号附加在声明/语句的末尾 (例如：if () {)
+
+# 指针和引用对齐
+# Type *Var; (星号靠近变量名)
+PointerAlignment: Right
+
+# C 风格类型转换后的空格
+# (type*) var -> (type*) var (true) vs (type*)var (false)
+SpaceAfterCStyleCast: true
+
+# 对齐连续的声明
+# static int a;
+# static char* b;
+# 会尝试对齐 a 和 b
+AlignConsecutiveDeclarations: true
+
+# 预处理指令的缩进
+# #if, #else, #endif 等指令不进行额外缩进
+IndentPPDirectives: None
+
+# 保留长行，不自动换行
+# 0 表示没有列限制
+ColumnLimit: 0
+
+# 函数定义和块开头是否保留空行
+# static int func() {
+# // no empty line here <---
+#   int x;
+# }
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# --- 头文件排序 ---
+SortIncludes: true # 启用头文件排序
+IncludeCategories:
+  - Regex:           '^<common.h>$' # 将 <common.h> 置于最前
+    Priority:        1
+  - Regex:           '^<[a-zA-Z0-9_/\.-]+>$' # 其他系统/库头文件 (< >)
+    Priority:        2
+  - Regex:           '^".*"$' # 项目内头文件 (" ")
+    Priority:        3
+
+# --- 其他细节和 WebKit 默认值的确认 ---
+
+# 圆括号内的空格:
+# func(arg) 而不是 func( arg )
+# if (condition) 而不是 if ( condition )
+SpacesInParentheses: false
+# 控制语句 (if, for, while) 的括号前需要空格
+SpaceBeforeParens: ControlStatements
+
+# 不允许短函数/块/if/循环在一行
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: Never # if (true) return; -> if (true) { return; }
+AllowShortLoopsOnASingleLine: false
+
+# 保留的最多连续空行数
+MaxEmptyLinesToKeep: 1
+
+# C++11 风格花括号列表（例如初始化列表）的格式化（对 C 项目影响不大，但保持一致）
+Cpp11BracedListStyle: false
+
+# 一元操作符周围的空格 (例如 *ptr, ++i)
+# false 表示 *ptr 而不是 * ptr
+SpaceAroundUnaries: false # 例如 *(node_t*)a
+
+# 连续赋值不对齐 (基于示例中 global_g->n = n; global_g->m = m; 的形式)
+AlignConsecutiveAssignments: false

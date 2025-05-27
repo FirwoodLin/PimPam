@@ -257,6 +257,7 @@ void data_compact(struct dpu_set_t set, bitmap_t bitmap,int base) {
     
     struct dpu_set_t dpu;
     uint32_t each_dpu;
+#ifndef LOAD_FROM_CACHE
     DPU_ASSERT(dpu_load(set, DPU_ALLOC_BINARY, NULL));
 
     uint64_t mode = 0;
@@ -362,6 +363,155 @@ void data_compact(struct dpu_set_t set, bitmap_t bitmap,int base) {
     for (uint32_t i = 0; i < NR_DPUS; i++) {
         dpu_row_ptr[i][processed_row_size[i]] = processed_col_size[i];
     }
+#endif
+
+#ifdef SAVE_TO_CACHE
+// 分别将每个 DPU 应该具有的数据保存到一个文件（一个 DPU 对应一个文件，命名规范：<DATA_NAME>_cache_<dpu_Id+base>.bin）
+// 需要包含的数据：root_num, roots, row_ptr, col_idx
+// 注意要方便读取，所以要把 roots, row_ptr, col_idx 都分别padding 到 DPU_ROOT_NUM, DPU_N, DPU_M 的大小
+    char filename[100];
+    for (uint32_t i = 0; i < NR_DPUS; i++) { // NR_DPUS 是当前 dpu_set 中的 DPU 数量
+        sprintf(filename, "%s/%s_cache_%d.bin", CACHE_DIR, DATA_NAME, i + base);
+        FILE *fout = fopen(filename, "wb");
+        if (!fout) {
+            fprintf(stderr, "Error opening file %s for writing\n", filename);
+            exit(EXIT_FAILURE);
+        }
+
+        // 1. 写入 root_num (实际的根节点数量)
+        uint64_t actual_root_count_for_dpu = global_g->root_num[i + base];
+        fwrite(&actual_root_count_for_dpu, sizeof(uint64_t), 1, fout);
+
+        // 2. 写入 roots 数组 (填充到 DPU_ROOT_NUM)；实际的根节点数据在 dpu_roots[i] 中，数量为 actual_root_count_for_dpu
+        node_t *padded_roots = (node_t *)calloc(DPU_ROOT_NUM, sizeof(node_t)); // 注意：这里使用 calloc 来确保分配的内存被初始化为 0
+        if (!padded_roots && DPU_ROOT_NUM > 0) {
+            fprintf(stderr, "Error: calloc failed for padded_roots for DPU %d\n", i + base);
+            fclose(fout);
+            exit(EXIT_FAILURE);
+        }
+        if (actual_root_count_for_dpu > DPU_ROOT_NUM) {
+            fprintf(stderr, ANSI_COLOR_RED "Error: actual_root_count (%llu) > DPU_ROOT_NUM (%u) for DPU %d. Cache saving failed.\n" ANSI_COLOR_RESET, (unsigned long long)actual_root_count_for_dpu, DPU_ROOT_NUM, i + base);
+            free(padded_roots);
+            fclose(fout);
+            exit(EXIT_FAILURE);
+        }
+        memcpy(padded_roots, dpu_roots[i], actual_root_count_for_dpu * sizeof(node_t));
+        fwrite(padded_roots, sizeof(node_t), DPU_ROOT_NUM, fout);
+        free(padded_roots);
+
+        // 3. 写入 row_ptr 数组 (填充到 DPU_N)；实际的 row_ptr 数据在 dpu_row_ptr[i] 中；processed_row_size[i] 是这个 DPU 分配到的节点数（行数）；CSR 格式中 row_ptr 的长度是节点数 + 1
+        uint64_t actual_row_ptr_elements = processed_row_size[i] + 1;
+        edge_ptr *padded_row_ptr = (edge_ptr *)calloc(DPU_N, sizeof(edge_ptr));
+        if (!padded_row_ptr && DPU_N > 0) {
+            fprintf(stderr, "Error: calloc failed for padded_row_ptr for DPU %d\n", i + base);
+            fclose(fout);
+            exit(EXIT_FAILURE);
+        }
+        if (actual_row_ptr_elements > DPU_N) {
+            fprintf(stderr, ANSI_COLOR_RED "Error: actual_row_ptr_elements (%llu) > DPU_N (%u) for DPU %d. Cache saving failed.\n" ANSI_COLOR_RESET, (unsigned long long)actual_row_ptr_elements, DPU_N, i + base);
+            free(padded_row_ptr);
+            fclose(fout);
+            exit(EXIT_FAILURE);
+        }
+        memcpy(padded_row_ptr, dpu_row_ptr[i], actual_row_ptr_elements * sizeof(edge_ptr));
+        fwrite(padded_row_ptr, sizeof(edge_ptr), DPU_N, fout);
+        free(padded_row_ptr);
+
+        // 4. 写入 col_idx 数组 (填充到 DPU_M)；实际的 col_idx 数据在 dpu_col_idx[i] 中；processed_col_size[i] 是这个 DPU 分配到的边数（列数）
+        uint64_t actual_col_idx_elements = processed_col_size[i];
+        node_t *padded_col_idx = (node_t *)calloc(DPU_M, sizeof(node_t));
+        if (!padded_col_idx && DPU_M > 0) {
+            fprintf(stderr, "Error: calloc failed for padded_col_idx for DPU %d\n", i + base);
+            fclose(fout);
+            exit(EXIT_FAILURE);
+        }
+        if (actual_col_idx_elements > DPU_M) {
+            fprintf(stderr, ANSI_COLOR_RED "Error: actual_col_idx_elements (%llu) > DPU_M (%u) for DPU %d. Cache saving failed.\n" ANSI_COLOR_RESET, (unsigned long long)actual_col_idx_elements, DPU_M, i + base);
+            free(padded_col_idx);
+            fclose(fout);
+            exit(EXIT_FAILURE);
+        }
+        memcpy(padded_col_idx, dpu_col_idx[i], actual_col_idx_elements * sizeof(node_t));
+        fwrite(padded_col_idx, sizeof(node_t), DPU_M, fout);
+        free(padded_col_idx);
+
+        fclose(fout);
+        // HERE_OKF 是一个宏，用于打印调试信息，这里保留其原始意图
+        // 假设 HERE_OKF 类似于 printf
+    }
+    (void)printf(ANSI_COLOR_GREEN "INFO:" ANSI_COLOR_RESET " Cache Data for DPU batch %d saved\n", base/NR_DPUS);
+#endif
+
+#ifdef LOAD_FROM_CACHE
+    char filename[128];
+    struct dpu_set_t dpu_load_iter; 
+    uint32_t dpu_rank_load;   
+
+    DPU_FOREACH(set, dpu_load_iter, dpu_rank_load) {
+        uint32_t id_for_file = dpu_rank_load + base; // ID 用于文件名和 global_g->root_num
+
+        sprintf(filename, "%s/%s_cache_%u.bin", CACHE_DIR,DATA_NAME, id_for_file);
+        FILE *fin = fopen(filename, "rb");
+        if (!fin) {
+            fprintf(stderr, ANSI_COLOR_RED "FATAL: Cache file %s not found. LOAD_FROM_CACHE requires all cache files to exist.\n" ANSI_COLOR_RESET, filename);
+            perror("fopen cache for read failed");
+            // 清理已分配的内存是一个好习惯，但这里直接退出
+            free(dpu_row_ptr);
+            free(dpu_col_idx);
+            free(dpu_roots);
+            exit(EXIT_FAILURE);
+        }
+
+        // 1. 读取并恢复 global_g->root_num
+        if (fread(&global_g->root_num[id_for_file], sizeof(uint64_t), 1, fin) != 1) {
+            fprintf(stderr, ANSI_COLOR_RED "Error reading root_num from cache file %s.\n" ANSI_COLOR_RESET, filename);
+            fclose(fin); free(dpu_row_ptr); free(dpu_col_idx); free(dpu_roots); exit(EXIT_FAILURE);
+        }
+
+        // 4. 读取填充后的 roots 数据到 dpu_roots[dpu_rank_load]
+        if (DPU_ROOT_NUM > 0 && fread(dpu_roots[dpu_rank_load], sizeof(node_t), DPU_ROOT_NUM, fin) != DPU_ROOT_NUM) {
+            fprintf(stderr, ANSI_COLOR_RED "Error reading roots from cache file %s. Expected %u elements.\n" ANSI_COLOR_RESET, filename, DPU_ROOT_NUM);
+            fclose(fin); free(dpu_row_ptr); free(dpu_col_idx); free(dpu_roots); exit(EXIT_FAILURE);
+        }
+
+        // 5. 读取填充后的 row_ptr 数据到 dpu_row_ptr[dpu_rank_load]
+        // dpu_row_ptr[dpu_rank_load] 指向一个 DPU_N * 2 * sizeof(edge_ptr) 的缓冲区，我们只读取 DPU_N 个元素
+        if (DPU_N > 0 && fread(dpu_row_ptr[dpu_rank_load], sizeof(edge_ptr), DPU_N, fin) != DPU_N) {
+            fprintf(stderr, ANSI_COLOR_RED "Error reading row_ptr from cache file %s. Expected %u elements.\n" ANSI_COLOR_RESET, filename, DPU_N);
+            fclose(fin); free(dpu_row_ptr); free(dpu_col_idx); free(dpu_roots); exit(EXIT_FAILURE);
+        }
+
+        // 6. 读取填充后的 col_idx 数据到 dpu_col_idx[dpu_rank_load]
+        int actual_r = 0;
+        if (DPU_M > 0 && (actual_r = fread(dpu_col_idx[dpu_rank_load], sizeof(node_t), DPU_M, fin)) != DPU_M) {
+            fprintf(stderr, ANSI_COLOR_RED "Error reading col_idx from cache file %s. Expected %u elements, got %d.\n" ANSI_COLOR_RESET, filename, DPU_M, actual_r);
+            fclose(fin); free(dpu_row_ptr); free(dpu_col_idx); free(dpu_roots); exit(EXIT_FAILURE);
+        }
+        
+        fclose(fin);
+    }
+
+    // 恢复CSR row_ptr的最后一个关键元素
+    DPU_FOREACH(set, dpu_load_iter, dpu_rank_load) {
+        // 验证索引的有效性：
+        if (processed_row_size[dpu_rank_load] < DPU_N || (DPU_N == 0 && processed_row_size[dpu_rank_load] == 0) ) {
+             dpu_row_ptr[dpu_rank_load][processed_row_size[dpu_rank_load]] = processed_col_size[dpu_rank_load];
+        } else if (DPU_N > 0 && processed_row_size[dpu_rank_load] == DPU_N) { // processed_row_size can be DPU_N if it means DPU_N nodes, index is DPU_N, but array has DPU_N elements [0...DPU_N-1]
+             dpu_row_ptr[dpu_rank_load][processed_row_size[dpu_rank_load]] = processed_col_size[dpu_rank_load];
+        } else {
+             fprintf(stderr, ANSI_COLOR_RED "Warning: processed_row_size[%u] = %lu relative to DPU_N = %u may require careful review for index %s:%d.\n" ANSI_COLOR_RESET,
+                dpu_rank_load, processed_row_size[dpu_rank_load], DPU_N, __FILE__, __LINE__);
+            // Fallback to direct assignment if index is within allocated bounds (DPU_N * 2)
+            if (processed_row_size[dpu_rank_load] < DPU_N * 2) {
+                 dpu_row_ptr[dpu_rank_load][processed_row_size[dpu_rank_load]] = processed_col_size[dpu_rank_load];
+            } else {
+                 fprintf(stderr, ANSI_COLOR_RED "Error: processed_row_size[%u]=%lu is out of bounds for dpu_row_ptr.\n" ANSI_COLOR_RESET,
+                    dpu_rank_load, processed_row_size[dpu_rank_load]);
+            }
+        }
+    }
+    (void)printf(ANSI_COLOR_GREEN "INFO: Data for DPU set (base %d) successfully loaded from cache.\n" ANSI_COLOR_RESET, base);
+#endif // End of #ifdef LOAD_FROM_CACHE
 
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
     DPU_FOREACH(set, dpu, each_dpu) {
