@@ -47,10 +47,9 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
     ans_t ans = 0;
 
     for (edge_ptr i = root_begin; i < root_end; i++) {
-        node_t index = 3*i;
-        node_t second_root = col_idx[index];  // intended DMA
+        node_t second_root = col_idx[i];  // intended DMA
         if (second_root >= root) break;
-        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin*3],root_end-root_begin,&col_idx[3*col_idx[index+1]],col_idx[index+2]-col_idx[index+1],second_root);
+        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_end-root_begin,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
     }
 
     return ans;
@@ -77,13 +76,12 @@ extern void clique3(sysname_t tasklet_id) {
         barrier_wait(&co_barrier);
         partial_ans[tasklet_id] = 0;
         for (edge_ptr j = root_begin + tasklet_id; j < root_end; j += NR_TASKLETS) {
-            node_t index = 3*j;
-            node_t second_root = col_idx[index];  // intended DMA
+            node_t second_root = col_idx[j];  // intended DMA
             if (second_root >= root) break;
 #ifdef BITMAP
             partial_ans[tasklet_id] += __imp_clique3_bitmap(tasklet_id, j - root_begin);
 #else
-            partial_ans[tasklet_id] += __imp_clique3_2(tasklet_id,&col_idx[root_begin*3],root_end-root_begin,&col_idx[3*col_idx[index+1]],col_idx[index+2]-col_idx[index+1],second_root);
+            partial_ans[tasklet_id] += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_end-root_begin,&col_idx[col_idx[edge_offset+2*j]],col_idx[edge_offset+2*j+1]-col_idx[edge_offset+2*j],second_root);
 #endif
         }
 #ifdef PERF

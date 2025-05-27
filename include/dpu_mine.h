@@ -13,6 +13,7 @@ __host uint64_t root_num;
 __mram_noinit node_t roots[DPU_ROOT_NUM];   // 1M
 __mram_noinit uint64_t ans[DPU_ROOT_NUM];   // 2M
 __mram_noinit uint64_t cycle_ct[DPU_ROOT_NUM];   // 2M
+__host edge_ptr edge_offset;
 
 // buffer
 __dma_aligned node_t buf[NR_TASKLETS][3][BUF_SIZE];  // 6K

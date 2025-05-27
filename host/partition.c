@@ -411,16 +411,20 @@ void data_xfer(struct dpu_set_t set,int base) {
             DPU_ASSERT(dpu_prepare_xfer(dpu, global_g->col_idx));
         }
         DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "col_idx", 0, ALIGN8(global_g->m * sizeof(node_t) * 3), DPU_XFER_DEFAULT));
+
+        //re_col
+        DPU_ASSERT(dpu_broadcast_to(set, "edge_offset", 0, &global_g->m, sizeof(edge_ptr), DPU_XFER_DEFAULT));
+
 }
 
 void col_redundant()
 {
-    for (edge_ptr j = global_g->m;j-- > 0;) {
+    for (edge_ptr j = 0;j<global_g->m;j++) {
         //HERE_OKF(" index %d begin...", j); 
         node_t node = global_g->col_idx[j];
-        global_g->col_idx[3*j]=node;
-        global_g->col_idx[3*j+1]=global_g->row_ptr[node];
-        global_g->col_idx[3*j+2]=global_g->row_ptr[node+1];;
+        edge_ptr offset = global_g->m;
+        global_g->col_idx[offset+j*2]=global_g->row_ptr[node];
+        global_g->col_idx[offset+j*2+1]=global_g->row_ptr[node+1];;
     }
 }
 
@@ -429,7 +433,7 @@ void prepare_graph() {
     data_renumber();     
     bitmap = malloc(sizeof(uint32_t) * (N >> 5) * EF_NR_DPUS);
     data_allocate(bitmap);  
-    //col_redundant();
+    col_redundant();
 }
 
 
@@ -443,7 +447,6 @@ void data_transfer(struct dpu_set_t set, Graph *g ,bitmap_t bitmap ,int base) {
 #ifdef NO_PARTITION_AS_POSSIBLE
     }
     else {
-        //if(base==0)
         data_xfer(set,base);
     }
 #endif

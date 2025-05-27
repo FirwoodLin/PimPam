@@ -7,7 +7,7 @@
 #define PERF
 // #define DPU_LOG
 // #define CPU_RUN
-//#define NO_PARTITION_AS_POSSIBLE
+#define NO_PARTITION_AS_POSSIBLE
 // #define MORE_ACCURATE_MODEL
 #if defined(CLIQUE4) || defined(CLIQUE5) 
 #define BITMAP
@@ -144,8 +144,7 @@
 #define DPU_M ((1<<25)/sizeof(node_t))
 #define DPU_ROOT_NUM ((1<<20)/sizeof(node_t))
 #define BITMAP_SIZE 32  // 1024 bits
-#define BUF_RSIZE 32
-#define BUF_SIZE  (BUF_RSIZE*3)
+#define BUF_SIZE  32
 #define MRAM_BUF_SIZE 32768
 #define BRANCH_LEVEL_THRESHOLD 16
 #define PARTITION_M ((1<<22)/sizeof(node_t))
