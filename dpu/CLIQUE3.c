@@ -110,6 +110,7 @@ extern void clique3(sysname_t tasklet_id) {
     }
 
     for (i += tasklet_id; i < root_num; i += NR_TASKLETS) {
+        
         node_t root = roots[i];  // intended DMA
 
 #ifdef PERF
