@@ -17,6 +17,7 @@ __host edge_ptr edge_offset;
 
 // buffer
 __dma_aligned node_t buf[NR_TASKLETS][3][BUF_SIZE];  // 6K
+__dma_aligned edge_ptr col_buf[NR_TASKLETS][BUF_SIZE];  // 2K
 //__mram_noinit node_t mram_buf[NR_TASKLETS << 2][MRAM_BUF_SIZE];  // 8M <= 16M
 
 #ifdef BITMAP

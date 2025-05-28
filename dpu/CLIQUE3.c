@@ -45,6 +45,8 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
     edge_ptr root_begin = row_ptr[root];  // intended DMA
     edge_ptr root_end = row_ptr[root + 1];  // intended DMA
     ans_t ans = 0;
+    
+    mram_read(&col_idx[edge_offset+2*root_begin],col_buf[tasklet_id], ALIGN8(((root_end-root_begin)*2)<<SIZE_NODE_T_LOG));
 
     for (edge_ptr i = root_begin; i < root_end; i++) {
         node_t second_root = col_idx[i];  // intended DMA

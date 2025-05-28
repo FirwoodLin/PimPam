@@ -17,7 +17,7 @@ extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_pt
         node_t i = 0;
 
         if (((uint64_t)a) & 4) {
-            a=a--;
+            a--;
             i = 1; 
             a_size++;
         }
@@ -48,12 +48,12 @@ extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_pt
     node_t *b_buf = buf[1];
     node_t i = 0, j = 0, ans = 0;
     if (((uint64_t)a) & 4) {
-        a=a--;
+        a--;
         i = 1;
         a_size++;
     }
     if (((uint64_t)b) & 4) {
-        b=b--;
+        b--;
         j = 1;
         b_size++;
     }
