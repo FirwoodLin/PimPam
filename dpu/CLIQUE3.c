@@ -44,14 +44,20 @@ static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col,
 static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
     edge_ptr root_begin = row_ptr[root];  // intended DMA
     edge_ptr root_end = row_ptr[root + 1];  // intended DMA
+    node_t root_size = root_end - root_begin;
     ans_t ans = 0;
-    
-    mram_read(&col_idx[edge_offset+2*root_begin],col_buf[tasklet_id], ALIGN8(((root_end-root_begin)*2)<<SIZE_NODE_T_LOG));
 
+    node_t __mram_ptr *a= &col_idx[edge_offset+2*root_begin];
+    
+    mram_read(a,col_buf[tasklet_id],MIN(16,root_end-root_begin)<<(SIZE_NODE_T_LOG+1));
+
+    int j=0;
     for (edge_ptr i = root_begin; i < root_end; i++) {
-        node_t second_root = col_idx[i];  // intended DMA
+        node_t second_root = col_idx[i];  // intended DMA 
         if (second_root >= root) break;
-        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_end-root_begin,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
+        //ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_buf[tasklet_id][2*j]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
+                ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
+    j++;
     }
 
     return ans;
@@ -110,7 +116,6 @@ extern void clique3(sysname_t tasklet_id) {
     }
 
     for (i += tasklet_id; i < root_num; i += NR_TASKLETS) {
-        
         node_t root = roots[i];  // intended DMA
 
 #ifdef PERF

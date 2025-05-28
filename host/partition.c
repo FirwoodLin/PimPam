@@ -422,7 +422,10 @@ void col_redundant()
     for (edge_ptr j = 0;j<global_g->m;j++) {
         //HERE_OKF(" index %d begin...", j); 
         node_t node = global_g->col_idx[j];
+
         edge_ptr offset = global_g->m;
+        //if (offset & 1)offset += 1;
+
         global_g->col_idx[offset+j*2]=global_g->row_ptr[node];
         global_g->col_idx[offset+j*2+1]=global_g->row_ptr[node+1];;
     }
