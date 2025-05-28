@@ -8,6 +8,7 @@
 Graph *global_g;
 bitmap_t bitmap;
 double workload[N];
+edge_ptr offset = 0;
 
 static int deg_cmp(const void *a, const void *b) {
     node_t x = *(node_t *)a;
@@ -87,7 +88,7 @@ static inline double predict_workload(Graph *g, node_t root) {
             r = mid;
         }
     }
-    double eff_deg = eff_deg = l - g->row_ptr[root];
+    double eff_deg = l - g->row_ptr[root];
     if (deg > MRAM_BUF_SIZE) {
         printf(ANSI_COLOR_RED "Error: deg too large\n" ANSI_COLOR_RESET);
         exit(1);
@@ -169,6 +170,10 @@ static bool update_alloc_info(uint32_t dpu_id, node_t n, edge_ptr *m_count, bitm
     // check condition
     if (global_g->root_num[dpu_id] == DPU_ROOT_NUM) {
         return false;
+    }
+    if(global_g->row_ptr[n + 1] - global_g->row_ptr[n]==0) //without edge
+    {
+        return true;
     }
     edge_ptr dpu_m_count = m_count[dpu_id];
     if (!check_in_bitmap(n, bitmap[dpu_id])) {
@@ -413,7 +418,7 @@ void data_xfer(struct dpu_set_t set,int base) {
         DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "col_idx", 0, ALIGN8(global_g->m * sizeof(node_t) * 3), DPU_XFER_DEFAULT));
 
         //re_col
-        DPU_ASSERT(dpu_broadcast_to(set, "edge_offset", 0, &global_g->m, sizeof(edge_ptr), DPU_XFER_DEFAULT));
+        DPU_ASSERT(dpu_broadcast_to(set, "edge_offset", 0, &offset, sizeof(edge_ptr), DPU_XFER_DEFAULT));
 
 }
 
@@ -422,10 +427,10 @@ void col_redundant()
     for (edge_ptr j = 0;j<global_g->m;j++) {
         //HERE_OKF(" index %d begin...", j); 
         node_t node = global_g->col_idx[j];
-
-        edge_ptr offset = global_g->m;
-        //if (offset & 1)offset += 1;
-
+        offset = global_g->m;
+        if (offset & 1) {
+            offset += 1;
+        }
         global_g->col_idx[offset+j*2]=global_g->row_ptr[node];
         global_g->col_idx[offset+j*2+1]=global_g->row_ptr[node+1];;
     }

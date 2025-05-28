@@ -28,8 +28,8 @@ static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col,
 #endif
 
 #ifdef NO_RUN   //test cycle without Intersection operation 
-    //node_t ans = intersect_seq_buf_thresh_not_run(tasklet_buf, &col_idx[root_begin], root_end - root_begin, &col_idx[second_root_begin], second_root_end - second_root_begin, mram_buf[tasklet_id], second_root);
-    node_t ans = 1;
+    node_t ans =  intersect_seq_buf_thresh_no_run(tasklet_buf, root_col, root_size, second_col, second_size, threshold);
+    //node_t ans = 1;
 #else
     node_t ans =  intersect_seq_buf_thresh(tasklet_buf, root_col, root_size, second_col, second_size, threshold);
 #endif
@@ -47,16 +47,14 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
     node_t root_size = root_end - root_begin;
     ans_t ans = 0;
 
-    node_t __mram_ptr *a= &col_idx[edge_offset+2*root_begin];
-    
-    mram_read(a,col_buf[tasklet_id],MIN(16,root_end-root_begin)<<(SIZE_NODE_T_LOG+1));
+    mram_read(&col_idx[edge_offset+2*root_begin],col_buf[tasklet_id],MIN(16,root_end-root_begin)<<(SIZE_EDGE_PTR_LOG+1));
 
     int j=0;
     for (edge_ptr i = root_begin; i < root_end; i++) {
         node_t second_root = col_idx[i];  // intended DMA 
         if (second_root >= root) break;
-        //ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_buf[tasklet_id][2*j]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
-                ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
+        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j],second_root);
+        //ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
     j++;
     }
 

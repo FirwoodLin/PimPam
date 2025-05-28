@@ -7,7 +7,7 @@
 #include <barrier.h>
 
 // transferred data
-__mram_noinit edge_ptr row_ptr[DPU_N];   // 16M
+__dma_aligned __mram_noinit edge_ptr row_ptr[DPU_N];   // 16M
 __dma_aligned __mram_noinit node_t col_idx[DPU_M];    // 32M
 __host uint64_t root_num;
 __mram_noinit node_t roots[DPU_ROOT_NUM];   // 1M
