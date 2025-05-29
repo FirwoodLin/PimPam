@@ -424,17 +424,56 @@ void data_xfer(struct dpu_set_t set,int base) {
 
 }
 
-void col_redundant()
+static void data_optimization()
 {
-    for (edge_ptr j = 0;j<global_g->m;j++) {
+    //Keep valid edges
+    Graph* g = global_g;
+    edge_ptr* new_row_ptr = (edge_ptr*) malloc((g->n + 1) * sizeof(edge_ptr));
+    node_t* new_col_idx = (node_t*) malloc(g->m * sizeof(node_t)); 
+
+    
+    if (!new_row_ptr || !new_col_idx) {
+        printf("Memory allocation failed!\n");
+        exit(1);
+    }
+
+    edge_ptr offset = 0;
+
+    for (node_t i = 0; i < g->n; i++) {
+        new_row_ptr[i] = offset;
+        edge_ptr start = g->row_ptr[i];
+        int eff = eff_num[i];
+
+        for (int j = 0; j < eff; j++) {
+            new_col_idx[offset++] = g->col_idx[start + j];
+        }
+    }
+    new_row_ptr[g->n] = offset;
+
+    // 更新原图内容
+    for (edge_ptr i = 0; i < offset; i++) {
+        g->col_idx[i] = new_col_idx[i];
+    }
+
+    for (node_t i = 0; i <= g->n; i++) {
+        g->row_ptr[i] = new_row_ptr[i];
+    }
+
+    g->m = offset;
+
+    free(new_row_ptr);
+    free(new_col_idx);
+
+    //col_redundant
+    for (edge_ptr j = 0;j<g->m;j++) {
         //HERE_OKF(" index %d begin...", j); 
-        node_t node = global_g->col_idx[j];
-        offset = global_g->m;
+        node_t node = g->col_idx[j];
+        offset = g->m;
         if (offset & 1) {
             offset += 1;
         }
-        global_g->col_idx[offset+j*2]=global_g->row_ptr[node];
-        global_g->col_idx[offset+j*2+1]=global_g->row_ptr[node+1];;
+        g->col_idx[offset+j*2]=g->row_ptr[node];
+        g->col_idx[offset+j*2+1]=g->row_ptr[node+1];;
     }
 }
 
@@ -443,7 +482,7 @@ void prepare_graph() {
     data_renumber();     
     bitmap = malloc(sizeof(uint32_t) * (N >> 5) * EF_NR_DPUS);
     data_allocate(bitmap);  
-    col_redundant();
+    data_optimization();
 }
 
 
