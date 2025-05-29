@@ -81,6 +81,7 @@ extern void clique3(sysname_t tasklet_id) {
 #endif
         barrier_wait(&co_barrier);
         partial_ans[tasklet_id] = 0;
+
         for (edge_ptr j = root_begin + tasklet_id; j < root_end; j += NR_TASKLETS) {
             node_t second_root = col_idx[j];  // intended DMA
             if (second_root >= root) break;

@@ -8,6 +8,7 @@
 Graph *global_g;
 bitmap_t bitmap;
 double workload[N];
+node_t eff_num[N];
 edge_ptr offset = 0;
 
 static int deg_cmp(const void *a, const void *b) {
@@ -89,6 +90,7 @@ static inline double predict_workload(Graph *g, node_t root) {
         }
     }
     double eff_deg = l - g->row_ptr[root];
+    eff_num[root]=eff_deg;
     if (deg > MRAM_BUF_SIZE) {
         printf(ANSI_COLOR_RED "Error: deg too large\n" ANSI_COLOR_RESET);
         exit(1);
