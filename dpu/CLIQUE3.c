@@ -28,8 +28,8 @@ static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col,
 #endif
 
 #ifdef NO_RUN   //test cycle without Intersection operation 
-    node_t ans =  intersect_seq_buf_thresh_no_run(tasklet_buf, root_col, root_size, second_col, second_size, threshold);
-    //node_t ans = 1;
+    //node_t ans =  intersect_seq_buf_thresh_no_run(tasklet_buf, root_col, root_size, second_col, second_size, threshold);
+    node_t ans = 1;
 #else
     node_t ans =  intersect_seq_buf_thresh(tasklet_buf, root_col, root_size, second_col, second_size, threshold);
 #endif
@@ -52,9 +52,8 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
     int j=0;
     for (edge_ptr i = root_begin; i < root_end; i++) {
         node_t second_root = col_idx[i];  // intended DMA 
-        if (second_root >= root) break;
-        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j],second_root);
-        //ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
+        //ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j],second_root);
+        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
     j++;
     }
 
@@ -84,7 +83,6 @@ extern void clique3(sysname_t tasklet_id) {
 
         for (edge_ptr j = root_begin + tasklet_id; j < root_end; j += NR_TASKLETS) {
             node_t second_root = col_idx[j];  // intended DMA
-            if (second_root >= root) break;
 #ifdef BITMAP
             partial_ans[tasklet_id] += __imp_clique3_bitmap(tasklet_id, j - root_begin);
 #else
