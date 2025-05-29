@@ -465,7 +465,7 @@ static void data_optimization()
     // free(new_col_idx);
 
     //col_redundant
-    for (edge_ptr j = 0;j<g->m;j++) {
+    for (edge_ptr j = 0;j<global_g->m;j++) {
         //HERE_OKF(" index %d begin...", j); 
         node_t node = g->col_idx[j];
         offset = g->m;
