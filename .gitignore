@@ -3,4 +3,7 @@ data-bak/
 bin/
 obj/
 result/
+python_tool/*.tsv
+python_tool/*.txt
 nohup.out
+

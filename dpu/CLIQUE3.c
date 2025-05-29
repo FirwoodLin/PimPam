@@ -21,6 +21,8 @@ static ans_t __imp_clique3_bitmap(sysname_t tasklet_id, node_t second_index) {
 
 static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col, node_t root_size, node_t __mram_ptr * second_col, node_t second_size,node_t threshold) {
 
+    if(!second_size)return 0;
+    
     node_t(*tasklet_buf)[BUF_SIZE] = buf[tasklet_id];
 
 #ifdef DC
@@ -45,6 +47,7 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
     edge_ptr root_begin = row_ptr[root];  // intended DMA
     edge_ptr root_end = row_ptr[root + 1];  // intended DMA
     node_t root_size = root_end - root_begin;
+    if(!root_size)return 0;
     ans_t ans = 0;
 
     mram_read(&col_idx[edge_offset+2*root_begin],col_buf[tasklet_id],MIN(16,root_end-root_begin)<<(SIZE_EDGE_PTR_LOG+1));
@@ -52,11 +55,10 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
     int j=0;
     for (edge_ptr i = root_begin; i < root_end; i++) {
         node_t second_root = col_idx[i];  // intended DMA 
-        //ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j],second_root);
-        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
+        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j],second_root);
+        //ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
     j++;
     }
-
     return ans;
 }
 
