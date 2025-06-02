@@ -59,9 +59,9 @@
 #define N (1<<6)
 #define M (1<<8)
 #elif defined(TH)
-#define DATA_NAME "Theory-3-4-5-9-B1k"
-#define N (1<<12)
-#define M (1<<16)
+#define DATA_NAME "Theory-4-5-9-16-B1k"
+#define N (1<<14)
+#define M (1<<20)
 #elif defined(FE)
 #define DATA_NAME "flickrEdges_adj"
 #define N (1<<17)

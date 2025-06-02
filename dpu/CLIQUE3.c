@@ -74,13 +74,14 @@ extern void clique3(sysname_t tasklet_id) {
             large_degree_num = i;
             break;
         }
+
 #ifdef PERF
         timer_start(&cycles[tasklet_id]);
 #endif
 #ifdef BITMAP
         build_bitmap(root, root_begin, root_end, tasklet_id);
 #endif
-        barrier_wait(&co_barrier);
+
         partial_ans[tasklet_id] = 0;
 
         for (edge_ptr j = root_begin + tasklet_id; j < root_end; j += NR_TASKLETS) {
@@ -112,6 +113,8 @@ extern void clique3(sysname_t tasklet_id) {
 #endif
         }
         i++;
+    
+        barrier_wait(&co_barrier);
     }
 
     for (i += tasklet_id; i < root_num; i += NR_TASKLETS) {
