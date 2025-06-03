@@ -21,7 +21,7 @@ static ans_t __imp_clique3_bitmap(sysname_t tasklet_id, node_t second_index) {
 
 static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col, node_t root_size, node_t __mram_ptr * second_col, node_t second_size,node_t threshold) {
 
-    if(!second_size)return 0;
+    if(!root_size||!second_size)return 0;
     
     node_t(*tasklet_buf)[BUF_SIZE] = buf[tasklet_id];
 
@@ -53,9 +53,9 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
     mram_read(&col_idx[edge_offset+2*root_begin],col_buf[tasklet_id],MIN(16,root_end-root_begin)<<(SIZE_EDGE_PTR_LOG+1));
 
     int j=0;
-    for (edge_ptr i = root_begin; i < root_end; i++) {
+    for (edge_ptr i = root_begin; i<root_end; i++) {
         node_t second_root = col_idx[i];  // intended DMA 
-        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j],second_root);
+        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i-root_begin,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j],second_root);
         //ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
     j++;
     }
@@ -89,7 +89,7 @@ extern void clique3(sysname_t tasklet_id) {
 #ifdef BITMAP
             partial_ans[tasklet_id] += __imp_clique3_bitmap(tasklet_id, j - root_begin);
 #else
-            partial_ans[tasklet_id] += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_end-root_begin,&col_idx[col_idx[edge_offset+2*j]],col_idx[edge_offset+2*j+1]-col_idx[edge_offset+2*j],second_root);
+            partial_ans[tasklet_id] += __imp_clique3_2(tasklet_id,&col_idx[root_begin],j-root_begin,&col_idx[col_idx[edge_offset+2*j]],col_idx[edge_offset+2*j+1]-col_idx[edge_offset+2*j],second_root);
 #endif
         }
 #ifdef PERF

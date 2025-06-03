@@ -72,9 +72,6 @@ extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_pt
             mram_read(b, b_buf, ALIGN8(MIN(b_size, BUF_SIZE) << SIZE_NODE_T_LOG));
             j = 0;
         }
-
-        if (a_buf[i] >= threshold) break;
-
         if (a_buf[i] == b_buf[j]) {
             ans++;
             i++;
