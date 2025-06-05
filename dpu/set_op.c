@@ -66,18 +66,19 @@ extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_pt
             mram_read(a, a_buf, ALIGN8(MIN(a_size, BUF_SIZE) << SIZE_NODE_T_LOG));
             i = 0;
         }
-        if (j == BUF_SIZE) {
+        if (j == BUF_SIZE) { 
             b_size -= j;
             b += j;
             mram_read(b, b_buf, ALIGN8(MIN(b_size, BUF_SIZE) << SIZE_NODE_T_LOG));
             j = 0;
         }
+
         if (a_buf[i] == b_buf[j]) {
             ans++;
             i++;
             j++;
         }
-        else if (a_buf[i] < b_buf[j]) {
+        else if (a_buf[i] <  b_buf[j]) {
             i++;
         }
         else {
