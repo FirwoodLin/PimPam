@@ -14,7 +14,7 @@ __mram_noinit node_t roots[DPU_ROOT_NUM];   // 1M
 __mram_noinit uint64_t ans[DPU_ROOT_NUM];   // 2M
 __mram_noinit uint64_t cycle_ct[DPU_ROOT_NUM];   // 2M
 __host edge_ptr edge_offset;
-
+__host uint32_t no_partition_flag;
 // buffer
 __dma_aligned node_t buf[NR_TASKLETS][3][BUF_SIZE];  // 6K
 __dma_aligned edge_ptr col_buf[NR_TASKLETS][BUF_SIZE];  // 2K
@@ -36,7 +36,7 @@ __host node_t large_degree_num;  //Number of nodes(degree>=16)
 BARRIER_INIT(co_barrier, NR_TASKLETS);
 
 // intersection
-extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_ptr *a, node_t a_size, node_t __mram_ptr *b, node_t b_size, node_t threshold);
+extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_ptr *a, node_t a_size, node_t __mram_ptr *b, node_t b_size);
 
 #ifdef BITMAP
 extern void intersect_bitmap(node_t *a, node_t *b, node_t *c, node_t bitmap_size);

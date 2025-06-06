@@ -19,7 +19,7 @@ static ans_t __imp_clique3_bitmap(sysname_t tasklet_id, node_t second_index) {
 }
 #endif
 
-static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col, node_t root_size, node_t __mram_ptr * second_col, node_t second_size,node_t threshold) {
+static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col, node_t root_size, node_t __mram_ptr * second_col, node_t second_size) {
 
     if(!root_size||!second_size)return 0;
     
@@ -30,10 +30,10 @@ static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col,
 #endif
 
 #ifdef NO_RUN   //test cycle without Intersection operation 
-    node_t ans =  intersect_seq_buf_thresh_no_run(tasklet_buf, root_col, root_size, second_col, second_size, threshold);
+    //node_t ans =  intersect_seq_buf_thresh_no_run(tasklet_buf, root_col, root_size, second_col, second_size);
     //node_t ans = 1;
 #else
-    node_t ans =  intersect_seq_buf_thresh(tasklet_buf, root_col, root_size, second_col, second_size, threshold);
+    node_t ans =  intersect_seq_buf_thresh(tasklet_buf, root_col, root_size, second_col, second_size);
 #endif
 
 #ifdef DC
@@ -55,12 +55,27 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
     int j=0;
     for (edge_ptr i = root_begin; i<root_end; i++) {
         node_t second_root = col_idx[i];  // intended DMA 
-        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i-root_begin,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j],second_root);
-        //ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],root_size,&col_idx[col_idx[edge_offset+2*i]],col_idx[edge_offset+2*i+1]-col_idx[edge_offset+2*i],second_root);
+        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i-root_begin,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j]);
     j++;
     }
     return ans;
 }
+
+static ans_t __imp_clique3_partition(sysname_t tasklet_id, node_t root) {
+    edge_ptr root_begin = row_ptr[root];  // intended DMA
+    edge_ptr root_end = row_ptr[root + 1];  // intended DMA
+    node_t root_size = root_end - root_begin;
+    if(!root_size)return 0;
+    ans_t ans = 0;
+    for (edge_ptr i = root_begin; i<root_end; i++) {
+        node_t second_root = col_idx[i];  // intended DMA 
+        edge_ptr second_begin = row_ptr[second_root];  // intended DMA
+        edge_ptr second_end = row_ptr[second_root+1];  // intended DMA
+        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i-root_begin,&col_idx[second_begin],second_end-second_begin);
+    }
+    return ans;
+}
+
 
 extern void clique3(sysname_t tasklet_id) {
 
@@ -85,13 +100,21 @@ extern void clique3(sysname_t tasklet_id) {
         partial_ans[tasklet_id] = 0;
 
         for (edge_ptr j = root_begin + tasklet_id; j < root_end; j += NR_TASKLETS) {
-            node_t second_root = col_idx[j];  // intended DMA
 #ifdef BITMAP
             partial_ans[tasklet_id] += __imp_clique3_bitmap(tasklet_id, j - root_begin);
 #else
-            partial_ans[tasklet_id] += __imp_clique3_2(tasklet_id,&col_idx[root_begin],j-root_begin,&col_idx[col_idx[edge_offset+2*j]],col_idx[edge_offset+2*j+1]-col_idx[edge_offset+2*j],second_root);
-#endif
+    if(no_partition_flag)
+            partial_ans[tasklet_id] += __imp_clique3_2(tasklet_id,&col_idx[root_begin],j-root_begin,&col_idx[col_idx[edge_offset+2*j]],col_idx[edge_offset+2*j+1]-col_idx[edge_offset+2*j]);
+    else
+        {
+            node_t second_root = col_idx[j];  // intended DMA
+            edge_ptr second_begin = row_ptr[second_root];  // intended DMA
+            edge_ptr second_end = row_ptr[second_root+1];  // intended DMA
+            partial_ans[tasklet_id] += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i-root_begin,&col_idx[second_begin],second_end-second_begin);
         }
+    }
+#endif
+
 #ifdef PERF
         partial_cycle[tasklet_id] = timer_stop(&cycles[tasklet_id]);
 #endif
@@ -123,8 +146,10 @@ extern void clique3(sysname_t tasklet_id) {
 #ifdef PERF
         timer_start(&cycles[tasklet_id]);
 #endif
-
+    if(no_partition_flag)
         ans[i] = __imp_clique3(tasklet_id, root);  // intended DMA
+    else
+        ans[i] = __imp_clique3_partition(tasklet_id, root);  // intended DMA
 
 #ifdef PERF
         cycle_ct[i] = timer_stop(&cycles[tasklet_id]);  // intended DMA

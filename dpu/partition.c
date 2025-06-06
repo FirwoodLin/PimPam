@@ -13,6 +13,7 @@ __mram_noinit_keep edge_ptr row_ptr[PARTITION_M];
 __mram_noinit_keep node_t col_idx[PARTITION_M];
 __mram_noinit_keep edge_ptr processed_row_ptr[PARTITION_M];
 __mram_noinit_keep node_t processed_col_idx[PARTITION_M];
+__mram_noinit_keep node_t eff_num[PARTITION_M];
 __mram_noinit_keep node_t roots[DPU_ROOT_NUM];
 __host uint64_t start;
 __host uint64_t size;
@@ -87,7 +88,8 @@ int main() {
                 row_size++;
                 if (cur_bitmap & (1 << ((start + i) & 31))) {
                     edge_ptr node_begin = row_ptr[i] - offset;   // intended DMA
-                    edge_ptr node_end = row_ptr[i + 1] - offset;   // intended DMA
+                    edge_ptr node_end = node_begin+eff_num[i];   // intended DMA
+                    //edge_ptr node_end = row_ptr[i+1] - offset;  // intended DMA
                     for (edge_ptr j = node_begin; j < node_end; j++) {
                         node_t new_idx = renumber[col_idx[j]];   // intended DMA
                         processed_col_idx[col_size] = new_idx;   // intended DMA
@@ -102,13 +104,6 @@ int main() {
         processed_row_size = row_size;
         processed_col_size = col_size;
 
-        // for col_re
-        for (edge_ptr j = processed_col_size; j-- > 0;) {
-        node_t node = processed_col_idx[j];
-        processed_col_idx[3*j + 0] = node;
-        processed_col_idx[3*j + 1] = processed_row_ptr[node];
-        processed_col_idx[3*j + 2] = processed_row_ptr[node + 1]; 
-        }
     }
 
     return 0;

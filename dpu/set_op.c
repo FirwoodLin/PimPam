@@ -3,7 +3,7 @@
 #include <defs.h>
 
 
-extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_ptr *a, node_t a_size, node_t __mram_ptr *b, node_t b_size, node_t threshold) {        
+extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_ptr *a, node_t a_size, node_t __mram_ptr *b, node_t b_size) {        
     node_t ans = 0;
     if (a_size > b_size) {
         node_t __mram_ptr *tmp = a;
@@ -24,7 +24,6 @@ extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_pt
         mram_read(a, buf[0], ALIGN8((a_size)<<SIZE_NODE_T_LOG));
         for (; i < a_size; i++) { 
             node_t a_val = buf[0][i];
-            if (a_val >= threshold) break;
             node_t l = 0, r = b_size;
             while (l <r) {
                 node_t mid = l + ((r - l) >> 1);;
