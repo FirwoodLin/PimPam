@@ -26,10 +26,6 @@ uint32_t bitmap[NR_TASKLETS * 3][BITMAP_SIZE];  // 12K
 __mram_noinit uint32_t mram_bitmap[BITMAP_SIZE << 5][BITMAP_SIZE];  // 256K
 #endif
 
-#ifdef DC //detailed cycle count
-__host uint64_t dc_cycle_ct[DC_NUM][NR_TASKLETS];  //0 for select side ;1 for intersection ; 2 for others
-#endif
-
 __host node_t large_degree_num;  //Number of nodes(degree>=16)
 
 // synchronization

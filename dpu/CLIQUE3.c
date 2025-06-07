@@ -21,13 +21,10 @@ static ans_t __imp_clique3_bitmap(sysname_t tasklet_id, node_t second_index) {
 
 static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col, node_t root_size, node_t __mram_ptr * second_col, node_t second_size) {
 
-    if(!root_size||!second_size)return 0;
+    if(!second_size)return 0;
     
     node_t(*tasklet_buf)[BUF_SIZE] = buf[tasklet_id];
 
-#ifdef DC
-    timer_start(&dc_cycles[tasklet_id]);
-#endif
 
 #ifdef NO_RUN   //test cycle without Intersection operation 
     //node_t ans =  intersect_seq_buf_thresh_no_run(tasklet_buf, root_col, root_size, second_col, second_size);
@@ -36,9 +33,6 @@ static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col,
     node_t ans =  intersect_seq_buf_thresh(tasklet_buf, root_col, root_size, second_col, second_size);
 #endif
 
-#ifdef DC
-    dc_cycle_ct[1][tasklet_id] +=timer_stop(&dc_cycles[tasklet_id]);  // intended DMA
-#endif  
   
     return ans;
 }
@@ -52,8 +46,8 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
 
     mram_read(&col_idx[edge_offset+2*root_begin],col_buf[tasklet_id],MIN(16,root_end-root_begin)<<(SIZE_EDGE_PTR_LOG+1));
 
-    int j=0;
-    for (edge_ptr i = root_begin; i<root_end; i++) {
+    int j=1;
+    for (edge_ptr i = root_begin+1; i<root_end; i++) {
         node_t second_root = col_idx[i];  // intended DMA 
         ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i-root_begin,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j]);
     j++;
@@ -67,7 +61,7 @@ static ans_t __imp_clique3_partition(sysname_t tasklet_id, node_t root) {
     node_t root_size = root_end - root_begin;
     if(!root_size)return 0;
     ans_t ans = 0;
-    for (edge_ptr i = root_begin; i<root_end; i++) {
+    for (edge_ptr i = root_begin + 1; i<root_end; i++) {
         node_t second_root = col_idx[i];  // intended DMA 
         edge_ptr second_begin = row_ptr[second_root];  // intended DMA
         edge_ptr second_end = row_ptr[second_root+1];  // intended DMA
@@ -99,7 +93,7 @@ extern void clique3(sysname_t tasklet_id) {
 
         partial_ans[tasklet_id] = 0;
 
-        for (edge_ptr j = root_begin + tasklet_id; j < root_end; j += NR_TASKLETS) {
+        for (edge_ptr j = root_begin + tasklet_id + 1  ; j < root_end; j += NR_TASKLETS) {
 #ifdef BITMAP
             partial_ans[tasklet_id] += __imp_clique3_bitmap(tasklet_id, j - root_begin);
 #else

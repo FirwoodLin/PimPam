@@ -1,3 +1,3 @@
 git add ./*
-git commit -m "feat: add show thread cycle "
-git push origin cdt0524
+git commit -m "opti: Reduce data acquisition time"
+git push origin cdt0607

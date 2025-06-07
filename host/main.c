@@ -17,9 +17,6 @@ uint64_t cycle_ct[N];
 uint64_t cycle_ct_dpu[EF_NR_DPUS][NR_TASKLETS];
 node_t large_degree_num[EF_NR_DPUS];
 
-#ifdef DC //detailed cycle count
-    uint64_t dc_cycle_ct_dpu[EF_NR_DPUS][DC_NUM][NR_TASKLETS];  //0 for select side ;1 for intersection ; 2 for others
-#endif
 
 int main() {
     printf("NR_DPUS: %u, NR_TASKLETS: %u, DPU_BINARY: %s, PATTERN: %s\n", NR_DPUS, NR_TASKLETS, DPU_BINARY, PATTERN_NAME);
@@ -106,9 +103,7 @@ for(int index=0;index<batch_count;index++){
         free(dpu_cycle_ct);
 #endif
 
-#ifdef DC //detailed cycle count
-        DPU_ASSERT(dpu_copy_from(dpu, "dc_cycle_ct", 0, dc_cycle_ct_dpu[each_dpu+base], sizeof(uint64_t)*DC_NUM*NR_TASKLETS));
-#endif
+
 
 
     }
@@ -142,12 +137,7 @@ for(int index=0;index<batch_count;index++){
 
     for (uint32_t i = 0; i < EF_NR_DPUS; i++) {
         for (uint32_t j = 0; j < NR_TASKLETS; j++) {
-            #ifdef DC //detailed cycle count
-            fprintf(fp, "DPU: %u, tasklet: %u, I_cycle: %lu, total_cycle: %lu, root_num: %lu\n", i, j,dc_cycle_ct_dpu[i][1][j],cycle_ct_dpu[i][j], g->root_num[i]);
-            #else
             fprintf(fp, "DPU: %u, tasklet: %u, cycle: %lu, root_num: %lu\n", i, j, cycle_ct_dpu[i][j], g->root_num[i]);
-
-    #endif
         }
     }
 
