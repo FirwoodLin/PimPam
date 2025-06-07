@@ -22,12 +22,15 @@ static ans_t __imp_clique3_bitmap(sysname_t tasklet_id, node_t second_index) {
 static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col, node_t root_size, node_t __mram_ptr * second_col, node_t second_size) {
 
     if(!second_size)return 0;
+    
+    node_t(*tasklet_buf)[BUF_SIZE] = buf[tasklet_id];
+
 
 #ifdef NO_RUN   //test cycle without Intersection operation 
     //node_t ans =  intersect_seq_buf_thresh_no_run(tasklet_buf, root_col, root_size, second_col, second_size);
     //node_t ans = 1;
 #else
-    node_t ans =  intersect_seq_buf_thresh(buf[tasklet_id], root_col, root_size, second_col, second_size);
+    node_t ans =  intersect_seq_buf_thresh(tasklet_buf, root_col, root_size, second_col, second_size);
 #endif
 
   
