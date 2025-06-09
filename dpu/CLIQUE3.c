@@ -92,59 +92,58 @@ extern void clique3( sysname_t tasklet_id )
 
 		if ( no_partition_flag )
 		{
-			const int	num_dma_threads		= 8;
-			const node_t	max_edges_per_chunk	= 256;  /* 每次最多搬运 256 条边 = 512 元素 */
+			// const int	num_dma_threads		= 8;
+			// const node_t	max_edges_per_chunk	= 256;  /* 每次最多搬运 256 条边 = 512 元素 */
 
-			node_t *cb = col_buf[0];                        /* 共享缓冲区，容量 512 个元素 */
+			// node_t *cb = col_buf[0];                        /* 共享缓冲区，容量 512 个元素 */
 
-			edge_ptr	root_begin	= row_ptr[root];
-			edge_ptr	root_end	= row_ptr[root + 1];
-			node_t		root_size	= root_end - root_begin;
+			// edge_ptr	root_begin	= row_ptr[root];
+			// edge_ptr	root_end	= row_ptr[root + 1];
+			// node_t		root_size	= root_end - root_begin;
 
-			for ( node_t chunk_offset = 1; chunk_offset < root_size; chunk_offset += max_edges_per_chunk )
-			{
-				node_t chunk_size = MIN( max_edges_per_chunk, root_size - chunk_offset ); /* 本次最多搬多少边 */
+			// for ( node_t chunk_offset = 1; chunk_offset < root_size; chunk_offset += max_edges_per_chunk )
+			// {
+			// 	node_t chunk_size = MIN( max_edges_per_chunk, root_size - chunk_offset ); /* 本次最多搬多少边 */
 
-				/* === 1. 并行搬运 === */
-				if ( tasklet_id < num_dma_threads )
-				{
-					node_t	local_chunk_size	= (chunk_size + num_dma_threads - 1) / num_dma_threads;
-					node_t	local_start		= tasklet_id * local_chunk_size;
-					node_t	local_end		= MIN( (tasklet_id + 1) * local_chunk_size, chunk_size );
+			// 	/* === 1. 并行搬运 === */
+			// 	if ( tasklet_id < num_dma_threads )
+			// 	{
+			// 		node_t	local_chunk_size	= (chunk_size + num_dma_threads - 1) / num_dma_threads;
+			// 		node_t	local_start		= tasklet_id * local_chunk_size;
+			// 		node_t	local_end		= MIN( (tasklet_id + 1) * local_chunk_size, chunk_size );
 
-					if ( local_start < local_end )
-					{
-						edge_ptr	mram_src_offset = root_begin + chunk_offset + local_start;
-						node_t		len		= local_end - local_start;
+			// 		if ( local_start < local_end )
+			// 		{
+			// 			edge_ptr	mram_src_offset = root_begin + chunk_offset + local_start;
+			// 			node_t		len		= local_end - local_start;
 
-						mram_read( &col_idx[edge_offset + 2 * mram_src_offset], cb + 2 * local_start, len << (SIZE_EDGE_PTR_LOG + 1) ); /* len * 2 * sizeof(edge_ptr) */
-					}
-				}
+			// 			mram_read( &col_idx[edge_offset + 2 * mram_src_offset], cb + 2 * local_start, len << (SIZE_EDGE_PTR_LOG + 1) ); /* len * 2 * sizeof(edge_ptr) */
+			// 		}
+			// 	}
 
-				barrier_wait( &co_barrier );                                                                                                    /* 所有搬运完成再进入计算 */
+			// 	barrier_wait( &co_barrier );                                                                                                    /* 所有搬运完成再进入计算 */
 
-				/* === 2. 并行处理 === */
-				for ( edge_ptr j = tasklet_id; j < chunk_size; j += NR_TASKLETS )
-				{
-					partial_ans[tasklet_id] += __imp_clique3_2(
-						tasklet_id,
-						&col_idx[root_begin],                                                                                           /* 原始 row 起点 */
-						chunk_offset + j,                                                                                               /* 真实全局偏移 j */
-						&col_idx[cb[2 * j]],
-						cb[2 * j + 1] - cb[2 * j]
-						);
-				}
+			// 	/* === 2. 并行处理 === */
+			// 	for ( edge_ptr j = tasklet_id; j < chunk_size; j += NR_TASKLETS )
+			// 	{
+			// 		partial_ans[tasklet_id] += __imp_clique3_2(
+			// 			tasklet_id,
+			// 			&col_idx[root_begin],                                                                                           /* 原始 row 起点 */
+			// 			chunk_offset + j,                                                                                               /* 真实全局偏移 j */
+			// 			&col_idx[cb[2 * j]],
+			// 			cb[2 * j + 1] - cb[2 * j]
+			// 			);
+			// 	}
 
-				barrier_wait( &co_barrier );                                                                                                    /* 等所有线程处理完，再搬下一块 */
-			}
-
+			// 	barrier_wait( &co_barrier );                                                                                                    /* 等所有线程处理完，再搬下一块 */
+			// }
 
 			
-			//  //without prefetch
-			//  for ( edge_ptr j = root_begin + tasklet_id + 1; j < root_end; j += NR_TASKLETS )
-			//  {
-			//      partial_ans[tasklet_id] += __imp_clique3_2( tasklet_id, &col_idx[root_begin], j - root_begin, &col_idx[col_idx[edge_offset + 2 * j]], col_idx[edge_offset + 2 * j + 1] - col_idx[edge_offset + 2 * j] );
-			//  }
+			 //without prefetch
+			 for ( edge_ptr j = root_begin + tasklet_id + 1; j < root_end; j += NR_TASKLETS )
+			 {
+			     partial_ans[tasklet_id] += __imp_clique3_2( tasklet_id, &col_idx[root_begin], j - root_begin, &col_idx[col_idx[edge_offset + 2 * j]], col_idx[edge_offset + 2 * j + 1] - col_idx[edge_offset + 2 * j] );
+			 }
 			 
 		}else{
 			for ( edge_ptr j = root_begin + tasklet_id + 1; j < root_end; j += NR_TASKLETS )
