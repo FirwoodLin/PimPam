@@ -3,7 +3,6 @@
 static ans_t partial_ans[NR_TASKLETS];
 static uint64_t partial_cycle[NR_TASKLETS];
 static perfcounter_cycles cycles[NR_TASKLETS];
-static perfcounter_cycles dc_cycles[NR_TASKLETS];
 
 #ifdef BITMAP
 static ans_t __imp_clique3_bitmap(sysname_t tasklet_id, node_t second_index) {
@@ -46,10 +45,8 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
 
     mram_read(&col_idx[edge_offset+2*root_begin],col_buf[tasklet_id],MIN(16,root_end-root_begin)<<(SIZE_EDGE_PTR_LOG+1));
 
-    int j=1;
-    for (edge_ptr i = root_begin+1; i<root_end; i++) {
-        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i-root_begin,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j]);
-    j++;
+    for (edge_ptr i = 1; i<root_size; i++) {
+        ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i,&col_idx[col_buf[tasklet_id][2*i]],col_buf[tasklet_id][2*i+1]-col_buf[tasklet_id][2*i]);
     }
 
     return ans;
@@ -71,84 +68,103 @@ static ans_t __imp_clique3_partition(sysname_t tasklet_id, node_t root) {
 }
 
 
-extern void clique3(sysname_t tasklet_id) {
-
-    node_t i = 0;
-    large_degree_num = root_num; //if all node is large_degree
-    while (i < root_num) {
-        node_t root = roots[i];  // intended DMA
-        node_t root_begin = row_ptr[root];  // intended DMA
-        node_t root_end = row_ptr[root + 1];  // intended DMA
-        if (root_end - root_begin < BRANCH_LEVEL_THRESHOLD) {
-            large_degree_num = i;
-            break;
-        }
-
-#ifdef PERF
-        timer_start(&cycles[tasklet_id]);
-#endif
-#ifdef BITMAP
-        build_bitmap(root, root_begin, root_end, tasklet_id);
-#endif
-
-        partial_ans[tasklet_id] = 0;
-
-
-        for (edge_ptr j = root_begin + tasklet_id + 1  ; j < root_end; j += NR_TASKLETS) {
-#ifdef BITMAP
-            partial_ans[tasklet_id] += __imp_clique3_bitmap(tasklet_id, j - root_begin);
-#else
-    if(no_partition_flag)
-            partial_ans[tasklet_id] += __imp_clique3_2(tasklet_id,&col_idx[root_begin],j-root_begin,&col_idx[col_idx[edge_offset+2*j]],col_idx[edge_offset+2*j+1]-col_idx[edge_offset+2*j]);
-    else
-        {
-            node_t second_root = col_idx[j];  // intended DMA
-            edge_ptr second_begin = row_ptr[second_root];  // intended DMA
-            edge_ptr second_end = row_ptr[second_root+1];  // intended DMA
-            partial_ans[tasklet_id] += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i-root_begin,&col_idx[second_begin],second_end-second_begin);
-        }
-    }
-#endif
+//func begin
+extern void clique3( sysname_t tasklet_id )
+{
+	node_t i = 0;
+	large_degree_num = root_num;                            /* if all node is large_degree */
+	while ( i < root_num )
+	{
+		node_t	root		= roots[i];             /* intended DMA */
+		node_t	root_begin	= row_ptr[root];        /* intended DMA */
+		node_t	root_end	= row_ptr[root + 1];    /* intended DMA */
+		node_t	root_size	= root_end - root_begin;
+		if ( root_size < BRANCH_LEVEL_THRESHOLD )
+		{
+			large_degree_num = i;
+			break;
+		}
 
 #ifdef PERF
-        partial_cycle[tasklet_id] = timer_stop(&cycles[tasklet_id]);
+		timer_start( &cycles[tasklet_id] );
 #endif
-        barrier_wait(&co_barrier);
-        if (tasklet_id == 0) {
-            ans_t total_ans = 0;
-#ifdef PERF
-            uint64_t total_cycle = 0;
-#endif
-            for (uint32_t j = 0; j < NR_TASKLETS; j++) {
-                total_ans += partial_ans[j];
-#ifdef PERF
-                total_cycle += partial_cycle[j];
-#endif
-            }
-            ans[i] = total_ans;  // intended DMA
-#ifdef PERF
-            cycle_ct[i] = total_cycle;  // intended DMA
-#endif
-        }
-        i++;
-    
-        barrier_wait(&co_barrier);
-    }
+		partial_ans[tasklet_id] = 0;
 
-    for (i += tasklet_id; i < root_num; i += NR_TASKLETS) {
-        node_t root = roots[i];  // intended DMA
+		if ( no_partition_flag )
+		{
+			const int num_dma_threads = 2;
+
+			node_t *cb = col_buf[0];
+			if ( tasklet_id < num_dma_threads )
+			{
+				node_t	chunk_size	= (root_size + num_dma_threads - 1) / num_dma_threads;
+				node_t	local_start	= tasklet_id * chunk_size;
+				node_t	local_end	= MIN( (tasklet_id + 1) * chunk_size, root_size );
+
+				edge_ptr mram_src_offset = root_begin + local_start;
+
+				node_t len = local_end - local_start;
+				mram_read( &col_idx[edge_offset + 2 * mram_src_offset], cb+ 2 * local_start, len << (SIZE_EDGE_PTR_LOG + 1) );
+			}
+			barrier_wait( &co_barrier );
+
+
+			for ( edge_ptr j = tasklet_id + 1; j < root_size; j += NR_TASKLETS )
+			{
+				partial_ans[tasklet_id] += __imp_clique3_2( tasklet_id, &col_idx[root_begin], j, &col_idx[cb[2 * j]], cb[2 * j + 1] - cb[2 * j] );
+			}
+		}else{
+			for ( edge_ptr j = root_begin + tasklet_id + 1; j < root_end; j += NR_TASKLETS )
+			{
+				node_t		second_root	= col_idx[j];                   /* intended DMA */
+				edge_ptr	second_begin	= row_ptr[second_root];         /* intended DMA */
+				edge_ptr	second_end	= row_ptr[second_root + 1];     /* intended DMA */
+				partial_ans[tasklet_id] += __imp_clique3_2( tasklet_id, &col_idx[root_begin], i - root_begin, &col_idx[second_begin], second_end - second_begin );
+			}
+		}
+
 
 #ifdef PERF
-        timer_start(&cycles[tasklet_id]);
+		partial_cycle[tasklet_id] = timer_stop( &cycles[tasklet_id] );
 #endif
-    if(no_partition_flag)
-        ans[i] = __imp_clique3(tasklet_id, root);  // intended DMA
-    else
-        ans[i] = __imp_clique3_partition(tasklet_id, root);  // intended DMA
+		barrier_wait( &co_barrier );
+		if ( tasklet_id == 0 )
+		{
+			ans_t total_ans = 0;
+#ifdef PERF
+			uint64_t total_cycle = 0;
+#endif
+			for ( uint32_t j = 0; j < NR_TASKLETS; j++ )
+			{
+				total_ans += partial_ans[j];
+#ifdef PERF
+				total_cycle += partial_cycle[j];
+#endif
+			}
+			ans[i] = total_ans;             /* intended DMA */
+#ifdef PERF
+			cycle_ct[i] = total_cycle;      /* intended DMA */
+#endif
+		}
+		i++;
+
+		barrier_wait( &co_barrier );
+	}
+
+	for ( i += tasklet_id; i < root_num; i += NR_TASKLETS )
+	{
+		node_t root = roots[i];                                         /* intended DMA */
 
 #ifdef PERF
-        cycle_ct[i] = timer_stop(&cycles[tasklet_id]);  // intended DMA
+		timer_start( &cycles[tasklet_id] );
 #endif
+		if ( no_partition_flag )
+			ans[i] = __imp_clique3( tasklet_id, root );             /* intended DMA */
+		else
+			ans[i] = __imp_clique3_partition( tasklet_id, root );   /* intended DMA */
 
-    }
+#ifdef PERF
+		cycle_ct[i] = timer_stop( &cycles[tasklet_id] );                /* intended DMA */
+#endif
+	}
 }
