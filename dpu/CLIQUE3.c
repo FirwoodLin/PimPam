@@ -92,26 +92,9 @@ extern void clique3( sysname_t tasklet_id )
 
 		if ( no_partition_flag )
 		{
-			const int num_dma_threads = 2;
-
-			node_t *cb = col_buf[0];
-			if ( tasklet_id < num_dma_threads )
+			for ( edge_ptr j = root_begin + tasklet_id + 1; j < root_end; j += NR_TASKLETS )
 			{
-				node_t	chunk_size	= (root_size + num_dma_threads - 1) / num_dma_threads;
-				node_t	local_start	= tasklet_id * chunk_size;
-				node_t	local_end	= MIN( (tasklet_id + 1) * chunk_size, root_size );
-
-				edge_ptr mram_src_offset = root_begin + local_start;
-
-				node_t len = local_end - local_start;
-				mram_read( &col_idx[edge_offset + 2 * mram_src_offset], cb+ 2 * local_start, len << (SIZE_EDGE_PTR_LOG + 1) );
-			}
-			barrier_wait( &co_barrier );
-
-
-			for ( edge_ptr j = tasklet_id + 1; j < root_size; j += NR_TASKLETS )
-			{
-				partial_ans[tasklet_id] += __imp_clique3_2( tasklet_id, &col_idx[root_begin], j, &col_idx[cb[2 * j]], cb[2 * j + 1] - cb[2 * j] );
+				partial_ans[tasklet_id] += __imp_clique3_2( tasklet_id, &col_idx[root_begin], j - root_begin, &col_idx[col_idx[edge_offset + 2 * j]], col_idx[edge_offset + 2 * j + 1] - col_idx[edge_offset + 2 * j] );
 			}
 		}else{
 			for ( edge_ptr j = root_begin + tasklet_id + 1; j < root_end; j += NR_TASKLETS )
