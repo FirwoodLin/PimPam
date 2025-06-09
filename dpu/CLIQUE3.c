@@ -48,10 +48,10 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
 
     int j=1;
     for (edge_ptr i = root_begin+1; i<root_end; i++) {
-        node_t second_root = col_idx[i];  // intended DMA 
         ans += __imp_clique3_2(tasklet_id,&col_idx[root_begin],i-root_begin,&col_idx[col_buf[tasklet_id][2*j]],col_buf[tasklet_id][2*j+1]-col_buf[tasklet_id][2*j]);
     j++;
     }
+
     return ans;
 }
 
@@ -92,6 +92,7 @@ extern void clique3(sysname_t tasklet_id) {
 #endif
 
         partial_ans[tasklet_id] = 0;
+
 
         for (edge_ptr j = root_begin + tasklet_id + 1  ; j < root_end; j += NR_TASKLETS) {
 #ifdef BITMAP
