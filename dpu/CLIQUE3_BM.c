@@ -4,12 +4,12 @@ static ans_t partial_ans[NR_TASKLETS];
 static uint64_t partial_cycle[NR_TASKLETS];
 static perfcounter_cycles cycles[NR_TASKLETS];
 
-static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr * root_col, node_t root_size, node_t __mram_ptr * second_col, node_t second_size) {
-
-    if(!second_size)return 0;
+static ans_t __imp_clique3_2(sysname_t tasklet_id, node_t __mram_ptr *a, node_t __mram_ptr *b,node_t threshold) {
     
-    node_t(*tasklet_buf)[BUF_SIZE] = buf[tasklet_id];
-    node_t ans =  intersect_seq_buf_thresh(tasklet_buf, root_col, root_size, second_col, second_size);
+	if(!threshold)return 0;
+    
+    uint64_t(*tasklet_buf)[BUF_SIZE] = buf[tasklet_id];
+    node_t ans =  intersect_bitmap(tasklet_buf, a, b, threshold);
 
     return ans;
 }
@@ -49,9 +49,10 @@ extern void clique3( sysname_t tasklet_id )
 #endif
 		partial_ans[tasklet_id] = 0;
 
-			 for ( edge_ptr j = root_begin + tasklet_id + 1; j < root_end; j += NR_TASKLETS )
+			 for ( edge_ptr j = root_begin + tasklet_id ; j < root_end; j += NR_TASKLETS )
 			 {
-			     partial_ans[tasklet_id] += __imp_clique3_2( tasklet_id, &col_idx[root_begin], j - root_begin, &col_idx[col_idx[edge_offset + 2 * j]], col_idx[edge_offset + 2 * j + 1] - col_idx[edge_offset + 2 * j] );
+				            node_t second_root = col_idx[j];  // intended DMA
+			     partial_ans[tasklet_id] += __imp_clique3_2( tasklet_id, &bitmap[root][0],  &bitmap[col_idx[j]][0],);
 			 }
 			 
 
