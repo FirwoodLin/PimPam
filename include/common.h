@@ -139,6 +139,7 @@
 #define ans_t uint64_t
 #define SIZE_NODE_T_LOG 2
 #define SIZE_EDGE_PTR_LOG 2
+#define SIZE_BITMAP_LOG 3
 #define INVALID_NODE ((node_t)(-1))
 #define DPU_N ((1<<24)/sizeof(edge_ptr))
 #define DPU_M ((1<<25)/sizeof(node_t))
@@ -149,6 +150,8 @@
 #define BRANCH_LEVEL_THRESHOLD 16
 #define PARTITION_M ((1<<22)/sizeof(node_t))
 
+#define BITMAP_ROW 4096
+#define BITMAP_COL 64 
 #define V_NR_DPUS 2560
 #define BATCH_SIZE (V_NR_DPUS/NR_DPUS)
 #ifdef V_NR_DPUS

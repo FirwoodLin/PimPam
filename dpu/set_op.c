@@ -43,49 +43,6 @@ extern node_t intersect_seq_buf_thresh(node_t (*buf)[BUF_SIZE], node_t __mram_pt
         return ans;
     }
     
-    // node_t *a_buf = buf[0];
-    // node_t *b_buf = buf[1];
-    // node_t i = 0, j = 0;
-    // if (((uint64_t)a) & 4) {
-    //     a--;
-    //     i = 1;
-    //     a_size++;
-    // }
-    // if (((uint64_t)b) & 4) {
-    //     b--;
-    //     j = 1;
-    //     b_size++;
-    // }
-    // mram_read(a, a_buf, ALIGN8(MIN(a_size, BUF_SIZE) << SIZE_NODE_T_LOG));
-    // mram_read(b, b_buf, ALIGN8(MIN(b_size, BUF_SIZE) << SIZE_NODE_T_LOG));
-
-    // while (i < a_size && j < b_size) {
-    //     if (i == BUF_SIZE) {
-    //         a_size -= i;
-    //         a += i;
-    //         mram_read(a, a_buf, ALIGN8(MIN(a_size, BUF_SIZE) << SIZE_NODE_T_LOG));
-    //         i = 0;
-    //     }
-    //     if (j == BUF_SIZE) { 
-    //         b_size -= j;
-    //         b += j;
-    //         mram_read(b, b_buf, ALIGN8(MIN(b_size, BUF_SIZE) << SIZE_NODE_T_LOG));
-    //         j = 0;
-    //     }
-
-    //     if (a_buf[i] == b_buf[j]) {
-    //         ans++;
-    //         i++;
-    //         j++;
-    //     }
-    //     else if (a_buf[i] <  b_buf[j]) {
-    //         i++;
-    //     }
-    //     else {
-    //         j++;
-    //     }
-    // }
-
 node_t *a_buf = buf[0];
 node_t *b_buf = buf[1];
 
