@@ -112,6 +112,7 @@
 #define PATTERN_NAME "clique2"
 #elif defined(CLIQUE3)
 #define KERNEL_FUNC clique3
+#define KERNEL_FUNC_BM clique3_bm
 #define PATTERN_NAME "clique3"
 #elif defined(CLIQUE4)
 #define KERNEL_FUNC clique4

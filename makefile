@@ -13,8 +13,20 @@ NR_DPUS ?=64
 NR_TASKLETS ?= 16
 GRAPH ?= WV
 PATTERN ?= CLIQUE3
+BITMAP_PATTERN ?= CLIQUE3_BM
 
-COMMON_CCFLAGS := -c -Wall -Wextra -g -O2 -I${INC_DIR} -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -D${GRAPH} -DDPU_BINARY=\"${BUILD_DIR}/dpu\" -DDPU_ALLOC_BINARY=\"${BUILD_DIR}/dpu_alloc\" -D${PATTERN} ${EXTRA_FLAGS}
+COMMON_CCFLAGS := -c -Wall -Wextra -g -O2 -I${INC_DIR} \
+  -DNR_TASKLETS=${NR_TASKLETS} \
+  -DNR_DPUS=${NR_DPUS} \
+  -D${GRAPH} \
+  -D${PATTERN} \
+  -D$(PATTERN)_BM \
+  -DDPU_BINARY=\"${BUILD_DIR}/dpu\" \
+  -DDPU_ALLOC_BINARY=\"${BUILD_DIR}/dpu_alloc\" \
+  -DDPU_BM_BINARY=\"${BUILD_DIR}/dpu_bm\" \
+  ${EXTRA_FLAGS}
+
+
 HOST_CCFLAGS := ${COMMON_CCFLAGS} -std=c11 `dpu-pkg-config --cflags dpu` 
 DPU_CCFLAGS := ${COMMON_CCFLAGS}
 
@@ -26,7 +38,7 @@ INC_FILE := ${INC_DIR}/common.h ${INC_DIR}/cyclecount.h ${INC_DIR}/timer.h ${INC
 
 .PHONY: all all_before host dpu clean test test_single test_all
 
-all: all_before ${BUILD_DIR}/host ${BUILD_DIR}/dpu ${BUILD_DIR}/dpu_alloc
+all: all_before ${BUILD_DIR}/host ${BUILD_DIR}/dpu ${BUILD_DIR}/dpu_alloc ${BUILD_DIR}/dpu_bm
 
 all_before:
 	@mkdir -p ${BUILD_DIR}
@@ -42,6 +54,9 @@ ${BUILD_DIR}/dpu: ${OBJ_DIR}/${DPU_DIR}/main.o ${OBJ_DIR}/${DPU_DIR}/set_op.o ${
 	@${DPULINK} ${DPU_LFLAGS} $^ -o $@
 
 ${BUILD_DIR}/dpu_alloc: ${OBJ_DIR}/${DPU_DIR}/partition.o
+	@${DPULINK} ${DPU_LFLAGS} $^ -o $@
+
+${BUILD_DIR}/dpu_bm: ${OBJ_DIR}/${DPU_DIR}/bitmap.o ${OBJ_DIR}/${DPU_DIR}/bit_op.o ${OBJ_DIR}/${DPU_DIR}/CLIQUE3_BM.o
 	@${DPULINK} ${DPU_LFLAGS} $^ -o $@
 
 ${OBJ_DIR}/${HOST_DIR}/%.o: ${HOST_DIR}/%.c ${INC_FILE}

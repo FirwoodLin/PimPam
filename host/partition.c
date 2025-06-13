@@ -12,6 +12,9 @@ node_t eff_num[N];
 edge_ptr offset = 0;
 uint32_t no_partition_flag = 1; //true
 
+uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL];  //bitmap transfer
+
+
 static int deg_cmp(const void *a, const void *b) {
     node_t x = *(node_t *)a;
     node_t y = *(node_t *)b;
@@ -481,7 +484,7 @@ void col_redundant()
 
 void prepare_graph() {
     read_input();  
-    data_renumber();     
+    data_renumber();    
     bitmap = malloc(sizeof(uint32_t) * (N >> 5) * EF_NR_DPUS);
     data_allocate(bitmap); 
 

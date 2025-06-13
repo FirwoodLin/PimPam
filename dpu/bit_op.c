@@ -2,17 +2,6 @@
 #include <mram.h>
 #include <defs.h>
 
-// static inline uint32_t count64(uint64_t x)
-// {
-//     uint32_t count = 0;
-//     while (x)
-//     {
-//         count += x & 1;  // 检查最低位是否为1
-//         x >>= 1;         // 右移1位
-//     }
-//     return count;
-// }
-
 
 static const uint8_t bitcount_table[256] = {
     0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
