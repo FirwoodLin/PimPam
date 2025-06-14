@@ -512,3 +512,7 @@ if(no_partition_flag){
     DPU_ASSERT(dpu_broadcast_to(set, "no_partition_flag", 0, &no_partition_flag, sizeof(uint32_t), DPU_XFER_DEFAULT));
 
 }
+
+void data_bm_transfer(struct dpu_set_t set, Graph *g ,bitmap_t bitmap ,int base){
+    
+}
