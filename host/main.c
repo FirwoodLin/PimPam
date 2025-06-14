@@ -103,12 +103,10 @@ for(int index=0;index<batch_count;index++){
         free(dpu_cycle_ct);
 #endif
 
-
-
-
     }
     if (!fine){printf(ANSI_COLOR_RED "Some failed\n" ANSI_COLOR_RESET);}
 }
+
 
     printf("DPU ans: %lu\n", total_ans);
 #ifdef PERF
