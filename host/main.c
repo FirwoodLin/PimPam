@@ -21,9 +21,6 @@ node_t large_degree_num[EF_NR_DPUS];
 int main() {
     printf("NR_DPUS: %u, NR_TASKLETS: %u, DPU_BINARY: %s, PATTERN: %s\n", NR_DPUS, NR_TASKLETS, DPU_BINARY, PATTERN_NAME);
 
-    struct dpu_set_t set, dpu;
-    DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
-
     // task allocation and data partition
     printf("Selecting graph: %s\n", DATA_PATH);
     start(&timer, 0, 0);
@@ -36,77 +33,87 @@ int main() {
     printf("Data prepare ");
     print(&timer, 0, 1);
 
+
+
+//prepare dpu
 ans_t total_ans = 0;
 #ifdef PERF
     uint64_t total_cycle_ct = 0;
 #endif
+struct dpu_set_t set, dpu;
+DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
 
 int batch_count = 1;
 int base = 0;
+int current_batch_size = NR_DPUS; // 每轮实际处理的 DPU 数
 #ifdef V_NR_DPUS
-batch_count = BATCH_SIZE;
+batch_count = (V_NR_DPUS + NR_DPUS - 1) / NR_DPUS; // 向上取整
 #endif
 
-for(int index=0;index<batch_count;index++){
+for (int index = 0; index < batch_count; index++) {
     HERE_OKF(" batch index %d begin...", index); 
 #ifdef V_NR_DPUS
     base = index * NR_DPUS;
+    current_batch_size = ((base + NR_DPUS) <= V_NR_DPUS) ? NR_DPUS : (V_NR_DPUS - base);
 #endif
-    data_transfer(set,g,bitmap,base);
-    // run it on DPU
+    data_transfer(set, g, bitmap, base);
+    
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
 
-    // collect answer and cycle count
     bool fine = true;
     bool finished, failed;
     uint32_t each_dpu;
-
+    uint32_t dpu_index = 0;
 
     DPU_FOREACH(set, dpu, each_dpu) {
-        // check status
+        if (dpu_index >= current_batch_size)
+            break;
+
         DPU_ASSERT(dpu_status(dpu, &finished, &failed));
         if (failed) {
             printf("DPU: %u failed\n", each_dpu);
             fine = false;
             break;
         }
-        // collect answer
-        uint64_t *dpu_ans = (uint64_t *)malloc(ALIGN8(g->root_num[each_dpu+base] * sizeof(uint64_t)));
-        DPU_ASSERT(dpu_copy_from(dpu, "ans", 0, dpu_ans, ALIGN8(g->root_num[each_dpu+base] * sizeof(uint64_t))));
-        for (node_t k = 0; k < g->root_num[each_dpu+base]; k++) {
-            node_t cur_root = g->roots[each_dpu+base][k];
+
+        // ====== collect answer ======
+        uint64_t *dpu_ans = (uint64_t *)malloc(ALIGN8(g->root_num[each_dpu + base] * sizeof(uint64_t)));
+        DPU_ASSERT(dpu_copy_from(dpu, "ans", 0, dpu_ans, ALIGN8(g->root_num[each_dpu + base] * sizeof(uint64_t))));
+        for (node_t k = 0; k < g->root_num[each_dpu + base]; k++) {
+            node_t cur_root = g->roots[each_dpu + base][k];
             result[cur_root] = dpu_ans[k];
             total_ans += dpu_ans[k];
         }
         free(dpu_ans);
 
-        // collect cycle count
 #ifdef PERF
-        uint64_t *dpu_cycle_ct = (uint64_t *)malloc(ALIGN8(g->root_num[each_dpu+base] * sizeof(uint64_t)));
-        DPU_ASSERT(dpu_copy_from(dpu, "cycle_ct", 0, dpu_cycle_ct, ALIGN8(g->root_num[each_dpu+base] * sizeof(uint64_t))));
-        DPU_ASSERT(dpu_copy_from(dpu, "large_degree_num", 0, large_degree_num[each_dpu+base], sizeof(node_t)));
-        for (node_t k = 0, cur_thread = 0; k < g->root_num[each_dpu+base]; k++) {
-            node_t cur_root = g->roots[each_dpu+base][k];
+        // ====== collect performance ======
+        uint64_t *dpu_cycle_ct = (uint64_t *)malloc(ALIGN8(g->root_num[each_dpu + base] * sizeof(uint64_t)));
+        DPU_ASSERT(dpu_copy_from(dpu, "cycle_ct", 0, dpu_cycle_ct, ALIGN8(g->root_num[each_dpu + base] * sizeof(uint64_t))));
+        DPU_ASSERT(dpu_copy_from(dpu, "large_degree_num", 0, large_degree_num[each_dpu + base], sizeof(node_t)));
+        for (node_t k = 0, cur_thread = 0; k < g->root_num[each_dpu + base]; k++) {
+            node_t cur_root = g->roots[each_dpu + base][k];
             cycle_ct[cur_root] = dpu_cycle_ct[k];
             if (g->row_ptr[cur_root + 1] - g->row_ptr[cur_root] >= BRANCH_LEVEL_THRESHOLD) {
                 for (uint32_t i = 0; i < NR_TASKLETS; i++) {
-                    cycle_ct_dpu[each_dpu+base][i] += dpu_cycle_ct[k] / NR_TASKLETS;
+                    cycle_ct_dpu[each_dpu + base][i] += dpu_cycle_ct[k] / NR_TASKLETS;
                 }
                 total_cycle_ct += dpu_cycle_ct[k];
-            }
-            else {
-                cycle_ct_dpu[each_dpu+base][cur_thread] += dpu_cycle_ct[k];
+            } else {
+                cycle_ct_dpu[each_dpu + base][cur_thread] += dpu_cycle_ct[k];
                 cur_thread = (cur_thread + 1) % NR_TASKLETS;
                 total_cycle_ct += dpu_cycle_ct[k];
             }
         }
         free(dpu_cycle_ct);
 #endif
-
+        dpu_index++;
     }
-    if (!fine){printf(ANSI_COLOR_RED "Some failed\n" ANSI_COLOR_RESET);}
-}
 
+    if (!fine) {
+        printf(ANSI_COLOR_RED "Some failed\n" ANSI_COLOR_RESET);
+    }
+}
 
     printf("DPU ans: %lu\n", total_ans);
 #ifdef PERF

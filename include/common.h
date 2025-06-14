@@ -154,7 +154,6 @@
 #define BITMAP_ROW 4096
 #define BITMAP_COL 64 
 #define V_NR_DPUS 2560
-#define BATCH_SIZE (V_NR_DPUS/NR_DPUS)
 #ifdef V_NR_DPUS
 #define EF_NR_DPUS V_NR_DPUS
 #else
