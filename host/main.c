@@ -34,14 +34,11 @@ int main() {
     print(&timer, 0, 1);
 
 
-
 //prepare dpu
 ans_t total_ans = 0;
 #ifdef PERF
     uint64_t total_cycle_ct = 0;
 #endif
-struct dpu_set_t set, dpu;
-DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
 
 int batch_count = 1;
 int base = 0;
@@ -50,12 +47,28 @@ int current_batch_size = NR_DPUS; // 每轮实际处理的 DPU 数
 batch_count = (V_NR_DPUS + NR_DPUS - 1) / NR_DPUS; // 向上取整
 #endif
 
+// 分配 set
+struct dpu_set_t set, dpu;
+int prev_batch_size = -1;
+bool set_valid = false;
+
+//dpu batch start ......
 for (int index = 0; index < batch_count; index++) {
     HERE_OKF(" batch index %d begin...", index); 
+
 #ifdef V_NR_DPUS
     base = index * NR_DPUS;
     current_batch_size = ((base + NR_DPUS) <= V_NR_DPUS) ? NR_DPUS : (V_NR_DPUS - base);
 #endif
+
+    if (current_batch_size != prev_batch_size) {
+        if (set_valid) {
+            DPU_ASSERT(dpu_free(set));
+        }
+        DPU_ASSERT(dpu_alloc(current_batch_size, NULL, &set));
+        set_valid = true;
+        prev_batch_size = current_batch_size;
+    }
     data_transfer(set, g, bitmap, base);
     
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
@@ -63,10 +76,9 @@ for (int index = 0; index < batch_count; index++) {
     bool fine = true;
     bool finished, failed;
     uint32_t each_dpu;
-    uint32_t dpu_index = 0;
 
     DPU_FOREACH(set, dpu, each_dpu) {
-        if (dpu_index >= current_batch_size)
+        if (each_dpu >= current_batch_size)
             break;
 
         DPU_ASSERT(dpu_status(dpu, &finished, &failed));
@@ -107,12 +119,15 @@ for (int index = 0; index < batch_count; index++) {
         }
         free(dpu_cycle_ct);
 #endif
-        dpu_index++;
     }
 
     if (!fine) {
         printf(ANSI_COLOR_RED "Some failed\n" ANSI_COLOR_RESET);
     }
+}
+
+if (set_valid) {
+    DPU_ASSERT(dpu_free(set));
 }
 
     printf("DPU ans: %lu\n", total_ans);
@@ -156,6 +171,5 @@ for (uint32_t i = 0; i < EF_NR_DPUS; i++) {
     assert(bitmap != NULL);
     free(bitmap);
     free(g);
-    DPU_ASSERT(dpu_free(set));
     return 0;
 }
