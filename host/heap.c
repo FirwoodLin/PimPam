@@ -1,54 +1,71 @@
 #include <common.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
-typedef struct ElementType {
-    uint32_t dpu_id;
-    double workload;
-} ElementType;
-
-uint32_t queue_size;
-ElementType Elements[EF_NR_DPUS];
-
-void queue_init() {
-    for (uint32_t i = 0; i < EF_NR_DPUS; i++) {
-        Elements[i].dpu_id = i;
-        Elements[i].workload = 0;
-    }
-    queue_size = EF_NR_DPUS;
+Heap *heap_create(uint32_t capacity) {
+    Heap *heap = malloc(sizeof(Heap));
+    heap->elements = malloc(sizeof(ElementType) * capacity);
+    heap->size = 0;
+    heap->capacity = capacity;
+    return heap;
 }
 
-void push_to_queue(uint32_t dpu_id, double workload) {
-    Elements[queue_size].dpu_id = dpu_id;
-    Elements[queue_size].workload = workload;
-    for (uint32_t i = queue_size++; i; i = (i - 1) >> 1) {
+void heap_free(Heap *heap) {
+    if (heap) {
+        free(heap->elements);
+        free(heap);
+    }
+}
+
+void heap_init(Heap *heap) {
+    heap->size = heap->capacity;
+    for (uint32_t i = 0; i < heap->capacity; i++) {
+        heap->elements[i].dpu_id = i;
+        heap->elements[i].workload = 0;
+    }
+}
+
+void heap_push(Heap *heap, uint32_t dpu_id, double workload) {
+    uint32_t i = heap->size++;
+    heap->elements[i].dpu_id = dpu_id;
+    heap->elements[i].workload = workload;
+    while (i) {
         uint32_t j = (i - 1) >> 1;
-        if(Elements[i].workload < Elements[j].workload || (Elements[i].workload == Elements[j].workload && Elements[i].dpu_id < Elements[j].dpu_id)) {
-            ElementType tmp = Elements[i];
-            Elements[i] = Elements[j];
-            Elements[j] = tmp;
-        }
-        else break;
+        if (heap->elements[i].workload < heap->elements[j].workload ||
+            (heap->elements[i].workload == heap->elements[j].workload &&
+             heap->elements[i].dpu_id < heap->elements[j].dpu_id)) {
+            ElementType tmp = heap->elements[i];
+            heap->elements[i] = heap->elements[j];
+            heap->elements[j] = tmp;
+            i = j;
+        } else break;
     }
 }
 
-uint32_t pop_from_queue() {
-    uint32_t ans = Elements[0].dpu_id;
-    Elements[0] = Elements[--queue_size];
+uint32_t heap_pop(Heap *heap) {
+    uint32_t ans = heap->elements[0].dpu_id;
+    heap->elements[0] = heap->elements[--heap->size];
     uint32_t i = 0;
     while (1) {
         uint32_t left = (i << 1) + 1;
         uint32_t right = (i << 1) + 2;
-        if (left >= queue_size) break;
+        if (left >= heap->size) break;
         uint32_t min_element = i;
-        if (Elements[left].workload < Elements[min_element].workload || (Elements[left].workload == Elements[min_element].workload && Elements[left].dpu_id < Elements[min_element].dpu_id)) {
+        if (heap->elements[left].workload < heap->elements[min_element].workload ||
+            (heap->elements[left].workload == heap->elements[min_element].workload &&
+             heap->elements[left].dpu_id < heap->elements[min_element].dpu_id)) {
             min_element = left;
         }
-        if (right < queue_size && (Elements[right].workload < Elements[min_element].workload || (Elements[right].workload == Elements[min_element].workload && Elements[right].dpu_id < Elements[min_element].dpu_id))) {
+        if (right < heap->size &&
+            (heap->elements[right].workload < heap->elements[min_element].workload ||
+             (heap->elements[right].workload == heap->elements[min_element].workload &&
+              heap->elements[right].dpu_id < heap->elements[min_element].dpu_id))) {
             min_element = right;
         }
         if (min_element == i) break;
-        ElementType tmp = Elements[i];
-        Elements[i] = Elements[min_element];
-        Elements[min_element] = tmp;
+        ElementType tmp = heap->elements[i];
+        heap->elements[i] = heap->elements[min_element];
+        heap->elements[min_element] = tmp;
         i = min_element;
     }
     return ans;

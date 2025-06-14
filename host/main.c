@@ -23,6 +23,7 @@ ans_t total_ans = 0;
     uint64_t total_cycle_ct = 0;
 #endif
 int BM_DPUS = 64;
+node_t BM_NUMS = 256;
 
 static void collect_dpu_batch(struct dpu_set_t set, int base, int current_batch_size);
 static void report_and_output_results();
@@ -68,16 +69,16 @@ for (int index = 0; index < batch_count; index++) {
 
     // 判断 batch 是否全在 BM_DPUS 区域
     if (bm_end < BM_DPUS) {
-        // 全在 BM 区域
-        if (current_batch_size != prev_batch_size) {
-            if (set_valid) DPU_ASSERT(dpu_free(set));
-            DPU_ASSERT(dpu_alloc(current_batch_size, NULL, &set));
-            set_valid = true;
-            prev_batch_size = current_batch_size;
-        }
-        data_transfer(set, g, bitmap, base);
-        DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
-        collect_dpu_batch(set, base, current_batch_size);
+        // // 全在 BM 区域
+        // if (current_batch_size != prev_batch_size) {
+        //     if (set_valid) DPU_ASSERT(dpu_free(set));
+        //     DPU_ASSERT(dpu_alloc(current_batch_size, NULL, &set));
+        //     set_valid = true;
+        //     prev_batch_size = current_batch_size;
+        // }
+        // data_transfer(set, g, bitmap, base);
+        // DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+        // collect_dpu_batch(set, base, current_batch_size);
     }
     // 全在普通区域
     else if (bm_start >= BM_DPUS) {
@@ -112,11 +113,11 @@ for (int index = 0; index < batch_count; index++) {
         DPU_ASSERT(dpu_launch(set_normal, DPU_SYNCHRONOUS)); // 异步启动
 
         // 同步等待 + 收集
-        //DPU_ASSERT(dpu_sync(set_bm));
+        DPU_ASSERT(dpu_sync(set_bm));
         collect_dpu_batch(set_bm, base, bm_part);
         DPU_ASSERT(dpu_free(set_bm));
 
-        //DPU_ASSERT(dpu_sync(set_normal));
+        DPU_ASSERT(dpu_sync(set_normal));
         collect_dpu_batch(set_normal, base + bm_part, normal_part);
         DPU_ASSERT(dpu_free(set_normal));
         

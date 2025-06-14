@@ -172,6 +172,18 @@ typedef struct Graph {
 } Graph;
 typedef uint32_t(*bitmap_t)[N >> 5];
 
+typedef struct ElementType {
+    uint32_t dpu_id;
+    double workload;
+} ElementType;
+
+typedef struct {
+    ElementType *elements;
+    uint32_t size;
+    uint32_t capacity;
+} Heap;
+
+
 #define ALIGN(x, a) (((x) + (a)-1) & ~((a)-1))
 #define ALIGN2(x) ALIGN(x, 2)
 #define ALIGN4(x) ALIGN(x, 4)

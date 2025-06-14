@@ -6,12 +6,15 @@
 #include <dpu_types.h>
 
 Graph *global_g;
+Heap * heap;
 bitmap_t bitmap;
 double workload[N];
 node_t eff_num[N];
 edge_ptr offset = 0;
 uint32_t no_partition_flag = 1; //true
 
+extern int BM_DPUS;
+extern node_t BM_NUMS;
 uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL];  //bitmap transfer
 
 
@@ -127,6 +130,35 @@ static inline double predict_workload(Graph *g, node_t root) {
 }
 #endif
 
+static void print_bitmap(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL], int row_limit, int col_limit_bits) {
+    for (int i = 0; i < row_limit; i++) {
+        printf("Row %d: ", i);
+        for (int j = 0; j < col_limit_bits; j++) {
+            int word_idx = j >> 6;
+            int bit_idx = j & 63;
+            uint64_t word = op_bitmap[i][word_idx];
+            int bit = (word >> bit_idx) & 1;
+            printf("%d", bit);
+        }
+        printf("\n");
+    }
+}
+
+static void init_op_bitmap(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL], node_t bm_nums, const Graph*g) {
+    // 清空整张 bitmap
+    memset(op_bitmap, 0, sizeof(uint64_t) * BITMAP_ROW * BITMAP_COL);
+
+    for (node_t i = 0; i < bm_nums; i++) {
+        // 标记它的邻居节点
+        for (edge_ptr e = g->row_ptr[i]; e < g->row_ptr[i + 1]; e++) {
+            node_t neighbor = g->col_idx[e];
+            op_bitmap[0][neighbor >> 6] |= (1ULL << (neighbor & 63));
+        }
+    }
+    print_bitmap(op_bitmap, 100, 100); 
+}
+
+
 static void read_input() {
     FILE *fin = fopen(DATA_PATH, "rb");
     node_t n;
@@ -206,48 +238,62 @@ static bool update_alloc_info(uint32_t dpu_id, node_t n, edge_ptr *m_count, bitm
     return true;
 }
 
-void queue_init();
-void push_to_queue(uint32_t dpu_id, double work_load);
-uint32_t pop_from_queue();
+uint32_t heap_pop(Heap *heap);
+void heap_push(Heap *heap, uint32_t dpu_id, double workload);
+void heap_init(Heap *heap);
+void heap_free(Heap *heap);
+Heap *heap_create(uint32_t capacity);
 
 static void data_allocate(bitmap_t bitmap) {
-    static edge_ptr m_count[EF_NR_DPUS];   // edges put in dpu
-    static node_t allocate_rank[N];
-    static double dpu_workload[EF_NR_DPUS];
-
     memset(bitmap, 0, (size_t)(N >> 3) * EF_NR_DPUS);
     for (uint32_t i = 0; i < EF_NR_DPUS; i++) {
         global_g->root_num[i] = 0;
         global_g->roots[i] = malloc(DPU_ROOT_NUM * sizeof(node_t));
     }
 
-    for (node_t i = 0; i < global_g->n; i++) {
-        allocate_rank[i] = i;
+    //BM
+    init_op_bitmap(op_bitmap, BM_NUMS, global_g);
+    for(node_t i = 0;i<BM_NUMS;i++)
+    {
+        uint32_t dpu_id = i % BM_DPUS;  // 轮流分配到 BM_DPUS 个 DPU
+        global_g->roots[dpu_id][global_g->root_num[dpu_id]++] = i;
     }
-    for (node_t i = 0; i < global_g->n; i++) {
+    //normal
+    static edge_ptr m_count[EF_NR_DPUS];   // edges put in dpu
+    static node_t allocate_rank[N];
+    static double dpu_workload[EF_NR_DPUS];
+    node_t alloc_node_num = global_g->n - BM_NUMS;
+    
+    for (node_t i = BM_NUMS; i < global_g->n; i++) {
+        allocate_rank[i - BM_NUMS] = i;
         workload[i] = predict_workload(global_g, i);
     }
-    qsort(allocate_rank, global_g->n, sizeof(node_t), workload_cmp);
 
-    queue_init();
+    qsort(allocate_rank, alloc_node_num, sizeof(node_t), workload_cmp);
+    
+    heap = heap_create(EF_NR_DPUS-BM_DPUS);
+    heap_init(heap);
+
     uint32_t full_dpu_ct = 0;
-    for (node_t i = 0; i < global_g->n; i++) {
-        while (full_dpu_ct != EF_NR_DPUS) {
-            uint32_t cur_dpu = pop_from_queue();
-            if (update_alloc_info(cur_dpu, allocate_rank[i], m_count, bitmap)) {
-                dpu_workload[cur_dpu] += workload[allocate_rank[i]];
-                push_to_queue(cur_dpu, dpu_workload[cur_dpu]);
-                break;
-            }
-            else {
-                full_dpu_ct++;
-            }
-        }
-        if (full_dpu_ct == EF_NR_DPUS) {
-            printf(ANSI_COLOR_RED "Error: not enough DPUs\n" ANSI_COLOR_RESET);
-            exit(1);
+    for (node_t i = 0; i < alloc_node_num; i++) {
+    node_t node = allocate_rank[i];
+    while (full_dpu_ct != (EF_NR_DPUS - BM_DPUS)) {
+        uint32_t cur_dpu = heap_pop(heap);
+        if (update_alloc_info(cur_dpu+BM_DPUS, node, m_count, bitmap)) {
+            dpu_workload[cur_dpu] += workload[node];
+            heap_push(heap, cur_dpu, dpu_workload[cur_dpu]);
+            break;
+        } else {
+            full_dpu_ct++;
         }
     }
+    if (full_dpu_ct == (EF_NR_DPUS - BM_DPUS)) {
+        printf(ANSI_COLOR_RED "Error: not enough DPUs\n" ANSI_COLOR_RESET);
+        heap_free(heap);
+        exit(1);
+    }
+}
+    heap_free(heap);
 }
 
 
