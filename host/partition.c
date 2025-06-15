@@ -338,12 +338,12 @@ static void data_allocate(bitmap_t bitmap) {
     }
     qsort(allocate_rank, global_g->n, sizeof(node_t), workload_cmp);
     
-    
+
     heap = heap_create(EF_NR_DPUS-BM_DPUS);
     heap_init(heap);
 
     uint32_t full_dpu_ct = 0;
-    for (node_t i = 0; i < alloc_node_num; i++) {
+    for (node_t i = 0; i <  global_g->n; i++) {
     node_t node = allocate_rank[i];
     if(node<BM_NUMS)continue;
     while (full_dpu_ct != (EF_NR_DPUS - BM_DPUS)) {
