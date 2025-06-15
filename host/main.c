@@ -69,16 +69,16 @@ for (int index = 0; index < batch_count; index++) {
 
     // 判断 batch 是否全在 BM_DPUS 区域
     if (bm_end < BM_DPUS) {
-        // // 全在 BM 区域
-        // if (current_batch_size != prev_batch_size) {
-        //     if (set_valid) DPU_ASSERT(dpu_free(set));
-        //     DPU_ASSERT(dpu_alloc(current_batch_size, NULL, &set));
-        //     set_valid = true;
-        //     prev_batch_size = current_batch_size;
-        // }
-        // data_transfer(set, g, bitmap, base);
-        // DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
-        // collect_dpu_batch(set, base, current_batch_size);
+        // 全在 BM 区域
+        if (current_batch_size != prev_batch_size) {
+            if (set_valid) DPU_ASSERT(dpu_free(set));
+            DPU_ASSERT(dpu_alloc(current_batch_size, NULL, &set));
+            set_valid = true;
+            prev_batch_size = current_batch_size;
+        }
+        data_bm_transfer(set, g, bitmap, base);
+        DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+        collect_dpu_batch(set, base, current_batch_size);
     }
     // 全在普通区域
     else if (bm_start >= BM_DPUS) {

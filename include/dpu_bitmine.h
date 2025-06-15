@@ -24,7 +24,7 @@ __dma_aligned uint64_t buf[NR_TASKLETS][3][BUF_SIZE];  // 12K
 __dma_aligned edge_ptr col_buf[NR_TASKLETS][BUF_SIZE];  // 2K
 
 //__mram_noinit uint64_t mram_buf[NR_TASKLETS << 2][BITMAP_COL];  //256K
-
+__host node_t large_degree_num;  //Number of nodes(degree>=16)
 // synchronization
 BARRIER_INIT(co_barrier, NR_TASKLETS);
 

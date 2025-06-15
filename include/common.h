@@ -106,6 +106,10 @@
 #warning "No DPU_ALLOC_BINARY defined, fall back to bin/dpu_alloc."
 #define DPU_ALLOC_BINARY "bin/dpu_alloc"
 #endif
+#ifndef DPU_BM_BINARY
+#warning "No DDPU_BM_BINARY defined, fall back to bin/dpu_bm."
+#define DPU_BINARY "bin/dpu_bm"
+#endif
 
 #if defined(CLIQUE2)
 #define KERNEL_FUNC clique2

@@ -144,6 +144,67 @@ static void print_bitmap(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL], int row_lim
     }
 }
 
+static const uint8_t bitcount_table[256] = {
+    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
+};
+
+static inline uint32_t count64_lookup(uint64_t x) {
+    return bitcount_table[x & 0xFF] +
+           bitcount_table[(x >> 8) & 0xFF] +
+           bitcount_table[(x >> 16) & 0xFF] +
+           bitcount_table[(x >> 24) & 0xFF] +
+           bitcount_table[(x >> 32) & 0xFF] +
+           bitcount_table[(x >> 40) & 0xFF] +
+           bitcount_table[(x >> 48) & 0xFF] +
+           bitcount_table[(x >> 56) & 0xFF];
+}
+
+static void verify_bitmap_intersection(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL], int bm_nums) {
+        uint32_t total_bm_ans = 0;
+    for (int i = 1; i < bm_nums; i++) {
+        uint32_t common = 0;
+        for (int j = 0; j < i; j++) {
+
+            int bound = j; // 只比较小于 i 和 j 的邻居
+            int word_limit = (bound + 63) >> 6; // ceil(bound / 64)
+
+            for (int w = 0; w < word_limit; w++) {
+                uint64_t a = op_bitmap[i][w];
+                uint64_t b = op_bitmap[j][w];
+                // 若是最后一段，做掩码处理
+                if ((w + 1) * 64 > bound) {
+                    int remain = bound - (w * 64);
+                    uint64_t mask = ((uint64_t)1 << remain) - 1;
+                    a &= mask;
+                    b &= mask;
+                }
+                common += count64_lookup(a & b);
+            }
+        }
+
+        if (common > 0) {
+            printf("i = %d, ans = %u\n", i, common);
+        }
+        total_bm_ans+=common;
+    }
+    printf("bm total ans = %u\n", total_bm_ans);
+}
+
 static void init_op_bitmap(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL], node_t bm_nums, const Graph*g) {
     // 清空整张 bitmap
     memset(op_bitmap, 0, sizeof(uint64_t) * BITMAP_ROW * BITMAP_COL);
@@ -152,10 +213,12 @@ static void init_op_bitmap(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL], node_t bm
         // 标记它的邻居节点
         for (edge_ptr e = g->row_ptr[i]; e < g->row_ptr[i + 1]; e++) {
             node_t neighbor = g->col_idx[e];
-            op_bitmap[0][neighbor >> 6] |= (1ULL << (neighbor & 63));
+            if(neighbor>=BM_NUMS)break;
+            op_bitmap[i][neighbor >> 6] |= (1ULL << (neighbor & 63));
         }
     }
-    print_bitmap(op_bitmap, 100, 100); 
+    print_bitmap(op_bitmap, 100, 100);  //test
+    verify_bitmap_intersection(op_bitmap,bm_nums); //test
 }
 
 
@@ -298,7 +361,7 @@ static void data_allocate(bitmap_t bitmap) {
 
 
 //rCSR format
-void data_compact(struct dpu_set_t set, bitmap_t bitmap,int base) {
+static void data_compact(struct dpu_set_t set, bitmap_t bitmap,int base) {
     edge_ptr(*dpu_row_ptr)[DPU_N * 2];
     dpu_row_ptr = malloc(NR_DPUS * DPU_N * 2 * sizeof(edge_ptr));
     node_t(*dpu_col_idx)[DPU_M * 2];
@@ -444,7 +507,7 @@ void data_compact(struct dpu_set_t set, bitmap_t bitmap,int base) {
 
 }
 
-void data_xfer(struct dpu_set_t set,int base) {
+static void data_xfer(struct dpu_set_t set,int base) {
        struct dpu_set_t dpu;
         uint32_t each_dpu;
 
@@ -475,7 +538,7 @@ void data_xfer(struct dpu_set_t set,int base) {
 
 }
 
-void col_redundant()
+static void col_redundant()
 {
     Graph* g = global_g;
     edge_ptr* new_row_ptr = (edge_ptr*) malloc((g->n + 1) * sizeof(edge_ptr));
@@ -559,6 +622,42 @@ if(no_partition_flag){
 
 }
 
+static void data_bm_xfer(struct dpu_set_t set,int base) {
+       struct dpu_set_t dpu;
+        uint32_t each_dpu;
+
+        DPU_ASSERT(dpu_load(set, DPU_BM_BINARY, NULL));
+        node_t max_root_num = 0;
+        DPU_FOREACH(set, dpu, each_dpu) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, &global_g->root_num[each_dpu+base]));
+            if(global_g->root_num[each_dpu+base] > max_root_num) {
+                max_root_num = global_g->root_num[each_dpu+base];
+            }
+        }
+        DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "root_num", 0, sizeof(uint64_t), DPU_XFER_DEFAULT));
+        DPU_FOREACH(set, dpu, each_dpu) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, global_g->roots[each_dpu+base]));
+        }
+        DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "roots", 0, ALIGN8(max_root_num * sizeof(node_t)), DPU_XFER_DEFAULT));
+        DPU_FOREACH(set, dpu, each_dpu) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, global_g->row_ptr));
+        }
+
+        DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "row_ptr", 0, ALIGN8((BM_NUMS + 1) * sizeof(edge_ptr)), DPU_XFER_DEFAULT));
+        DPU_FOREACH(set, dpu, each_dpu) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, global_g->col_idx));
+        }
+        DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "col_idx", 0, ALIGN8(global_g->row_ptr[BM_NUMS]*sizeof(node_t)), DPU_XFER_DEFAULT));
+
+        //op_bitmap
+        DPU_FOREACH(set, dpu, each_dpu) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, op_bitmap));
+        }
+        DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "bitmap", 0, sizeof(uint64_t) * BITMAP_ROW * BITMAP_COL, DPU_XFER_DEFAULT));
+
+
+}
+
 void data_bm_transfer(struct dpu_set_t set, Graph *g ,bitmap_t bitmap ,int base){
-    
+    data_bm_xfer(set,base);
 }

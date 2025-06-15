@@ -23,7 +23,7 @@ static ans_t __imp_clique3(sysname_t tasklet_id, node_t root) {
 
     for (edge_ptr i = root_begin; i<root_end; i++) {
 	node_t second_root = col_idx[i];  // intended DMA	
-	ans += __imp_clique3_2( tasklet_id, &bitmap[root][0],  &bitmap[second_root][0],second_root);
+	ans += __imp_clique3_2( tasklet_id, bitmap[root],  bitmap[second_root],second_root);
     }
 
     return ans;
@@ -91,8 +91,7 @@ extern void clique3_bm( sysname_t tasklet_id )
 #ifdef PERF
 		timer_start( &cycles[tasklet_id] );
 #endif
-
-			ans[i] = __imp_clique3( tasklet_id, root );             /* intended DMA */
+			ans[i] = __imp_clique3( tasklet_id, root);             /* intended DMA */
 
 #ifdef PERF
 		cycle_ct[i] = timer_stop( &cycles[tasklet_id] );                /* intended DMA */
