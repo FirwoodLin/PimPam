@@ -35,14 +35,14 @@ static inline uint32_t count64_lookup(uint64_t x) {
 
 
 // intersection
-extern node_t intersect_bitmap(uint64_t (*buf)[BUF_SIZE], node_t __mram_ptr *a, node_t __mram_ptr *b, node_t threshold)
+extern node_t intersect_bitmap(uint64_t (*buf)[BUF_SIZE], uint64_t __mram_ptr *a, uint64_t __mram_ptr *b, node_t threshold)
 {
     node_t ans = 0;
     uint64_t cmp_size = threshold >> 6;         // = threshold / 64，
     uint64_t remain = threshold & 63;           // = threshold % 64
 
-    node_t *a_buf = buf[0]; 
-    node_t *b_buf = buf[1];
+    uint64_t *a_buf = buf[0]; 
+    uint64_t *b_buf = buf[1];
 
     uint64_t offset = 0;
 

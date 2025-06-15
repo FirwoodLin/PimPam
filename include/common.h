@@ -155,8 +155,8 @@
 #define BRANCH_LEVEL_THRESHOLD 16
 #define PARTITION_M ((1<<22)/sizeof(node_t))
 
-#define BITMAP_ROW 4096
-#define BITMAP_COL 64 
+#define BITMAP_ROW 8192
+#define BITMAP_COL 128
 
 #define V_NR_DPUS 2560
 #ifdef V_NR_DPUS

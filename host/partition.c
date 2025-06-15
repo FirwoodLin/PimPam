@@ -179,17 +179,10 @@ static void verify_bitmap_intersection(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL
 
     for (int i = 1; i < bm_nums; i++) {
         uint32_t common = 0;
-        for (int j = 0; j < i; j++) {
-            // 首先判断 j 是否是 i 的邻居：即 op_bitmap[i][j] == 1
-            int word_idx = j >> 6;         // j / 64
-            int bit_idx = j & 63;          // j % 64
-            if ((op_bitmap[i][word_idx] & ((uint64_t)1 << bit_idx)) == 0) {
-                continue; // j 不是 i 的邻居，跳过
-            }
-
+        for (int e = global_g->row_ptr[i]; e < global_g->row_ptr[i+1]; e++) {
+            int j = global_g->col_idx[e];
             int bound = j;
             int word_limit = (bound + 63) >> 6;
-
             for (int w = 0; w < word_limit; w++) {
                 uint64_t a = op_bitmap[i][w];
                 uint64_t b = op_bitmap[j][w];
@@ -224,7 +217,7 @@ static void init_op_bitmap(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL], node_t bm
         }
     }
     //print_bitmap(op_bitmap, 100, 100);  //test
-    //verify_bitmap_intersection(op_bitmap,bm_nums); //test
+    verify_bitmap_intersection(op_bitmap,bm_nums); //test
 }
 
 
@@ -320,13 +313,6 @@ static void data_allocate(bitmap_t bitmap) {
         global_g->roots[i] = malloc(DPU_ROOT_NUM * sizeof(node_t));
     }
 
-    //BM
-    init_op_bitmap(op_bitmap, BM_NUMS, global_g);
-    for(node_t i = 0;i<BM_NUMS;i++)
-    {
-        uint32_t dpu_id = i % BM_DPUS;  // 轮流分配到 BM_DPUS 个 DPU
-        global_g->roots[dpu_id][global_g->root_num[dpu_id]++] = i;
-    }
     //normal
     static edge_ptr m_count[EF_NR_DPUS];   // edges put in dpu
     static node_t allocate_rank[N];
@@ -356,7 +342,7 @@ static void data_allocate(bitmap_t bitmap) {
             full_dpu_ct++;
         }
     }
-    
+
     if (full_dpu_ct == (EF_NR_DPUS - BM_DPUS)) {
         printf(ANSI_COLOR_RED "Error: not enough DPUs\n" ANSI_COLOR_RESET);
         heap_free(heap);
@@ -563,7 +549,8 @@ static void col_redundant()
         new_row_ptr[i] = col_offset;
         edge_ptr start = g->row_ptr[i];
         int eff = eff_num[i];
-
+        
+        //if(eff>16&&i<512)    printf("data %u =================== num %u\n",i,eff);
         for (int j = 0; j < eff; j++) {
             new_col_idx[col_offset++] = g->col_idx[start + j];
         }
@@ -612,6 +599,12 @@ void prepare_graph() {
 
     if(no_partition_flag)col_redundant();
 
+    init_op_bitmap(op_bitmap, BM_NUMS, global_g);
+    for(node_t i = 0;i<BM_NUMS;i++)
+    {
+        uint32_t dpu_id = i % BM_DPUS;  // 轮流分配到 BM_DPUS 个 DPU
+        global_g->roots[dpu_id][global_g->root_num[dpu_id]++] = i;
+    }
 
 }
 
@@ -654,7 +647,7 @@ static void data_bm_xfer(struct dpu_set_t set,int base) {
         DPU_FOREACH(set, dpu, each_dpu) {
             DPU_ASSERT(dpu_prepare_xfer(dpu, global_g->col_idx));
         }
-        DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "col_idx", 0, ALIGN8(global_g->row_ptr[BM_NUMS]*sizeof(node_t)), DPU_XFER_DEFAULT));
+        DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "col_idx", 0, ALIGN8(global_g->row_ptr[BM_NUMS] * sizeof(node_t)), DPU_XFER_DEFAULT));
 
         //op_bitmap
         DPU_FOREACH(set, dpu, each_dpu) {

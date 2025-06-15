@@ -22,8 +22,8 @@ ans_t total_ans = 0;
 #ifdef PERF
     uint64_t total_cycle_ct = 0;
 #endif
-int BM_DPUS = 64;
-node_t BM_NUMS = 256;
+int BM_DPUS = 128;
+node_t BM_NUMS = 2048;
 
 static void collect_dpu_batch(struct dpu_set_t set, int base, int current_batch_size);
 static void report_and_output_results();
@@ -69,7 +69,7 @@ for (int index = 0; index < batch_count; index++) {
 
     // 判断 batch 是否全在 BM_DPUS 区域
     if (bm_end < BM_DPUS) {
-        // 全在 BM 区域
+        ////全在 BM 区域
         if (current_batch_size != prev_batch_size) {
             if (set_valid) DPU_ASSERT(dpu_free(set));
             DPU_ASSERT(dpu_alloc(current_batch_size, NULL, &set));
@@ -79,6 +79,7 @@ for (int index = 0; index < batch_count; index++) {
         data_bm_transfer(set, g, bitmap, base);
         DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
         collect_dpu_batch(set, base, current_batch_size);
+        
     }
     // 全在普通区域
     else if (bm_start >= BM_DPUS) {
