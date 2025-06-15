@@ -356,6 +356,7 @@ static void data_allocate(bitmap_t bitmap) {
             full_dpu_ct++;
         }
     }
+    
     if (full_dpu_ct == (EF_NR_DPUS - BM_DPUS)) {
         printf(ANSI_COLOR_RED "Error: not enough DPUs\n" ANSI_COLOR_RESET);
         heap_free(heap);
