@@ -175,18 +175,24 @@ static inline uint32_t count64_lookup(uint64_t x) {
 }
 
 static void verify_bitmap_intersection(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL], int bm_nums) {
-        uint32_t total_bm_ans = 0;
+    uint32_t total_bm_ans = 0;
+
     for (int i = 1; i < bm_nums; i++) {
         uint32_t common = 0;
         for (int j = 0; j < i; j++) {
+            // 首先判断 j 是否是 i 的邻居：即 op_bitmap[i][j] == 1
+            int word_idx = j >> 6;         // j / 64
+            int bit_idx = j & 63;          // j % 64
+            if ((op_bitmap[i][word_idx] & ((uint64_t)1 << bit_idx)) == 0) {
+                continue; // j 不是 i 的邻居，跳过
+            }
 
-            int bound = j; // 只比较小于 i 和 j 的邻居
-            int word_limit = (bound + 63) >> 6; // ceil(bound / 64)
+            int bound = j;
+            int word_limit = (bound + 63) >> 6;
 
             for (int w = 0; w < word_limit; w++) {
                 uint64_t a = op_bitmap[i][w];
                 uint64_t b = op_bitmap[j][w];
-                // 若是最后一段，做掩码处理
                 if ((w + 1) * 64 > bound) {
                     int remain = bound - (w * 64);
                     uint64_t mask = ((uint64_t)1 << remain) - 1;
@@ -196,12 +202,12 @@ static void verify_bitmap_intersection(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL
                 common += count64_lookup(a & b);
             }
         }
-
         if (common > 0) {
             printf("i = %d, ans = %u\n", i, common);
         }
-        total_bm_ans+=common;
+        total_bm_ans += common;
     }
+
     printf("bm total ans = %u\n", total_bm_ans);
 }
 
@@ -217,8 +223,8 @@ static void init_op_bitmap(uint64_t op_bitmap[BITMAP_ROW][BITMAP_COL], node_t bm
             op_bitmap[i][neighbor >> 6] |= (1ULL << (neighbor & 63));
         }
     }
-    print_bitmap(op_bitmap, 100, 100);  //test
-    verify_bitmap_intersection(op_bitmap,bm_nums); //test
+    //print_bitmap(op_bitmap, 100, 100);  //test
+    //verify_bitmap_intersection(op_bitmap,bm_nums); //test
 }
 
 
