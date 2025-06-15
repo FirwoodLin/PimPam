@@ -331,14 +331,13 @@ static void data_allocate(bitmap_t bitmap) {
     static edge_ptr m_count[EF_NR_DPUS];   // edges put in dpu
     static node_t allocate_rank[N];
     static double dpu_workload[EF_NR_DPUS];
-    node_t alloc_node_num = global_g->n - BM_NUMS;
     
-    for (node_t i = BM_NUMS; i < global_g->n; i++) {
-        allocate_rank[i - BM_NUMS] = i;
+    for (node_t i = 0; i < global_g->n; i++) {
+        allocate_rank[i] = i;
         workload[i] = predict_workload(global_g, i);
     }
-
-    qsort(allocate_rank, alloc_node_num, sizeof(node_t), workload_cmp);
+    qsort(allocate_rank, global_g->n, sizeof(node_t), workload_cmp);
+    
     
     heap = heap_create(EF_NR_DPUS-BM_DPUS);
     heap_init(heap);
@@ -346,6 +345,7 @@ static void data_allocate(bitmap_t bitmap) {
     uint32_t full_dpu_ct = 0;
     for (node_t i = 0; i < alloc_node_num; i++) {
     node_t node = allocate_rank[i];
+    if(node<BM_NUMS)continue;
     while (full_dpu_ct != (EF_NR_DPUS - BM_DPUS)) {
         uint32_t cur_dpu = heap_pop(heap);
         if (update_alloc_info(cur_dpu+BM_DPUS, node, m_count, bitmap)) {
